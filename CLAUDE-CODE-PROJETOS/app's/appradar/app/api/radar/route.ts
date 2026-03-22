@@ -48,8 +48,11 @@ export async function GET(req: NextRequest) {
     // Scan completo de todas as categorias
     const report = await runRadarScan()
 
-    // Persistir no Supabase (fire-and-forget)
-    const reportId = await saveRadarReport(report)
+    // Persistir no Supabase apenas quando é scan novo (não do cache)
+    let reportId: string | null = null
+    if (!report.fromCache) {
+      reportId = await saveRadarReport(report)
+    }
 
     let filtered = report.top_apps.filter(a => {
       if (a.radar_score < minRadar) return false

@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Radar, Search, ChevronDown, ChevronUp, Target, TrendingUp, Zap, Globe, Star, Clock, AlertTriangle, CheckCircle, Filter, Loader2, Rocket, X, ArrowRight, Activity, Bell, History } from 'lucide-react'
+import { formatMRR } from '@/lib/utils'
 
 interface RadarApp {
   appId: string
@@ -87,12 +89,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   discarded: { label: 'Descartado',  color: 'text-red-400',     bg: 'bg-red-500/10 border-red-500/20' },
 }
 
-function formatMRR(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`
-  return `$${value}`
-}
-
 function RadarScoreCircle({ score }: { score: number }) {
   const color = score >= 75 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-red-400'
   const bgRing = score >= 75 ? 'border-emerald-500/30' : score >= 50 ? 'border-amber-500/30' : 'border-red-500/30'
@@ -127,7 +123,7 @@ function AppCard({ app, rank, reportId, onSelect, selectedBundles }: {
           {/* App icon */}
           <div className="flex-shrink-0">
             {app.icon ? (
-              <img src={app.icon} alt={app.name} className="w-12 h-12 rounded-xl" />
+              <Image src={app.icon} alt={app.name} width={48} height={48} className="rounded-xl object-cover" unoptimized />
             ) : (
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-lg font-bold">
                 {app.name[0]}
@@ -451,7 +447,7 @@ function SelectionPanel({ selections, onUpdateStatus }: {
           return (
             <div key={sel.id} className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5">
               {sel.app_icon ? (
-                <img src={sel.app_icon} alt={sel.app_name} className="w-9 h-9 rounded-lg" />
+                <Image src={sel.app_icon} alt={sel.app_name} width={36} height={36} className="rounded-lg object-cover" unoptimized />
               ) : (
                 <div className="w-9 h-9 rounded-lg bg-indigo-600/20 flex items-center justify-center text-sm font-bold text-indigo-300">
                   {sel.app_name[0]}
@@ -607,11 +603,17 @@ export default function RadarPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-widest">
+                3 Fontes de Dados Reais
+              </span>
+            </div>
+            <h1 className="text-4xl font-extrabold text-white mb-2 leading-tight">
               Radar <span className="text-gradient">MVP Factory</span>
             </h1>
-            <p className="text-slate-400 text-sm">
-              Apps para clonar com melhorias para LatAm e India
+            <p className="text-slate-400 text-base">
+              Apps para clonar com melhorias para LatAm e India. iTunes + Google Play + Google Trends.
             </p>
           </div>
           <button
