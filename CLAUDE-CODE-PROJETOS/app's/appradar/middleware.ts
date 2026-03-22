@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose'
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-dev-secret-change-me')
 const COOKIE_NAME = 'appradar-token'
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/api/refresh', '/api/radar', '/api/radar/select', '/api/radar/status']
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/api/refresh', '/api/radar', '/api/radar/select', '/api/radar/status', '/api/factory']
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
