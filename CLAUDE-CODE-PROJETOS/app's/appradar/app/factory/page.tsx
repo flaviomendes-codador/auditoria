@@ -89,6 +89,9 @@ export default function FactoryPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [activePhase, setActivePhase] = useState(1)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [generatedProject, setGeneratedProject] = useState<any>(null)
+  const [generating, setGenerating] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
 
   const fetchPipeline = useCallback(async () => {
     try {
@@ -131,6 +134,38 @@ export default function FactoryPage() {
   useEffect(() => {
     if (selectedApp) fetchDetail(selectedApp)
   }, [selectedApp, fetchDetail])
+
+  const generateApp = useCallback(async (selId: string) => {
+    setGenerating(true)
+    try {
+      const res = await fetch(`/api/factory/generate?id=${selId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setGeneratedProject(data)
+        const firstFile = Object.keys(data.files)[0]
+        if (firstFile) setSelectedFile(firstFile)
+      }
+    } catch { /* silencioso */ }
+    setGenerating(false)
+  }, [])
+
+  const downloadSetupScript = useCallback(() => {
+    if (!generatedProject) return
+    const { slug, files, setup_commands } = generatedProject
+    let script = `#!/bin/bash\n# Setup script para ${slug}\n# Gerado pelo AppRadar MVP Factory\n\nmkdir -p ${slug}\ncd ${slug}\n\n`
+    for (const [path, content] of Object.entries(files)) {
+      const dir = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : ''
+      if (dir) script += `mkdir -p "${dir}"\n`
+      const escaped = (content as string).replace(/'/g, "'\\''")
+      script += `cat > '${path}' << 'ENDOFFILE'\n${escaped}\nENDOFFILE\n\n`
+    }
+    script += `\necho "Projeto ${slug} criado!"\necho "Próximos passos:"\n${setup_commands.map((c: string) => `echo "  ${c}"`).join('\n')}\n`
+    const blob = new Blob([script], { type: 'text/x-shellscript' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `setup-${slug}.sh`; a.click()
+    URL.revokeObjectURL(url)
+  }, [generatedProject])
 
   const copyText = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
@@ -384,16 +419,93 @@ export default function FactoryPage() {
               {/* Phase 2: Build */}
               {activePhase === 2 && (
                 <div className="space-y-4">
+                  {/* Generate App Button */}
                   <div className="card p-5">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <Wrench size={14} className="text-cyan-400" /> Checklist de Build
+                        <Zap size={14} className="text-amber-400" /> Gerar Projeto Completo
                       </h3>
-                      <span className="text-xs text-slate-500">
-                        ~{detail.teardown.estimated_days} dias estimados
-                      </span>
+                      <span className="text-xs text-slate-500">~{detail.teardown.estimated_days} dias estimados</span>
                     </div>
+                    <p className="text-xs text-slate-500 mb-4">
+                      Gera um projeto Next.js completo com auth, paywall, páginas por categoria, schema Supabase e deploy config.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => generateApp(detail.selection.id)}
+                        disabled={generating}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-500/20"
+                      >
+                        {generating ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                        {generating ? 'Gerando...' : 'Gerar App Agora'}
+                      </button>
+                      {generatedProject && (
+                        <button
+                          onClick={downloadSetupScript}
+                          className="flex items-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20"
+                        >
+                          <ArrowRight size={14} /> Download .sh
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
+                  {/* Generated Project Viewer */}
+                  {generatedProject && (
+                    <div className="card overflow-hidden">
+                      <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-white">{generatedProject.app_name}</h3>
+                          <p className="text-[10px] text-slate-500">{Object.keys(generatedProject.files).length} arquivos · {generatedProject.category}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {generatedProject.setup_commands.slice(0, 3).map((cmd: string, i: number) => (
+                            <span key={i} className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-mono">
+                              {cmd}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-12" style={{ height: 420 }}>
+                        {/* File tree */}
+                        <div className="col-span-4 border-r border-white/5 overflow-y-auto p-2">
+                          {Object.keys(generatedProject.files).map((path: string) => (
+                            <button
+                              key={path}
+                              onClick={() => setSelectedFile(path)}
+                              className={`w-full text-left px-2 py-1 rounded text-[11px] font-mono truncate transition-colors ${
+                                selectedFile === path ? 'bg-indigo-600/20 text-indigo-400' : 'text-slate-500 hover:text-white hover:bg-white/5'
+                              }`}
+                            >
+                              {path}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Code viewer */}
+                        <div className="col-span-8 overflow-auto p-4">
+                          {selectedFile && (
+                            <div className="relative">
+                              <button
+                                onClick={() => copyText(generatedProject.files[selectedFile], `file-${selectedFile}`)}
+                                className="absolute top-0 right-0 text-slate-600 hover:text-indigo-400 transition-colors"
+                              >
+                                {copiedId === `file-${selectedFile}` ? <CheckCircle size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                              </button>
+                              <pre className="text-[11px] text-slate-300 font-mono whitespace-pre-wrap leading-relaxed">
+                                {generatedProject.files[selectedFile]}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Build Checklist */}
+                  <div className="card p-5">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <Wrench size={14} className="text-cyan-400" /> Checklist de Build
+                    </h3>
                     {detail.build_checklist.phases.map((phase, pi) => (
                       <div key={pi} className="mb-4">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{phase.name}</p>
