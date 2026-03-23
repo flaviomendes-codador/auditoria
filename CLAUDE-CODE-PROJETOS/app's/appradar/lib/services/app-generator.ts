@@ -18,7 +18,7 @@ export function generateAppProject(teardown: AppTeardown): GeneratedProject {
   const slug = teardown.app_name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 30)
   const appName = teardown.app_name
   const cat = teardown.category
-  const price = teardown.monetization_model.pricing_tiers[1]?.price || '$4.99/mês'
+  const price = teardown.monetization_model.clone_pricing[1]?.price || '$4.99/mês'
   const trialDays = teardown.monetization_model.trial_days
 
   const files: Record<string, string> = {}
@@ -258,7 +258,7 @@ import { useState } from 'react'
 import { Check, Zap, Crown } from 'lucide-react'
 
 const TIERS = [
-${teardown.monetization_model.pricing_tiers.map((t, i) => `  {
+${teardown.monetization_model.clone_pricing.map((t, i) => `  {
     name: '${t.name}',
     price: '${t.price}',
     features: [${t.features.map(f => `'${f}'`).join(', ')}],
@@ -285,7 +285,7 @@ export default function Paywall({ onClose }: { onClose?: () => void }) {
           <p className="text-slate-400 mt-2">Teste grátis por ${trialDays} dias. Cancele quando quiser.</p>
         </div>
 
-        <div className="grid grid-cols-${teardown.monetization_model.pricing_tiers.length} gap-4">
+        <div className="grid grid-cols-${teardown.monetization_model.clone_pricing.length} gap-4">
           {TIERS.map((tier) => (
             <div
               key={tier.name}

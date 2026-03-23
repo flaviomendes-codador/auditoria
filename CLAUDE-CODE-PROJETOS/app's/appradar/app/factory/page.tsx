@@ -31,13 +31,25 @@ interface PipelineApp {
 interface Teardown {
   app_name: string
   category: string
+  value_proposition: string
   core_features: string[]
+  loved_features: string[]
+  pain_points: string[]
   improvements: string[]
   stack_recommendation: { frontend: string; backend: string; database: string; deploy: string; extras: string[] }
-  monetization_model: { type: string; pricing_tiers: { name: string; price: string; features: string[] }[]; trial_days: number }
+  monetization_model: { type: string; original_pricing: any[]; clone_pricing: { name: string; price: string; price_value: number; features: string[] }[]; trial_days: number }
   estimated_days: number
   target_markets: string[]
   competitive_edge: string
+  icp: { age_range: string; gender_skew: string; income_level: string; primary_pain: string; secondary_pains: string[]; use_context: string; device_preference: string; language_gap: string[] }
+  competitors_local: { name: string; country: string; rating: number; installs: string; weaknesses: string[] }[]
+  market_sizing: { tam: number; sam: number; som: number; confidence: string }
+  positioning: string[]
+  gap_analysis: { language_gap: boolean; pricing_gap: boolean; feature_gaps: string[]; ux_gaps: string[] }
+  languages_supported: string[]
+  screenshots_count: number
+  content_rating: string
+  tech_stack_original: string[]
 }
 
 interface BuildChecklist {
@@ -384,12 +396,12 @@ export default function FactoryPage() {
                       <TrendingUp size={14} className="text-emerald-400" /> Modelo de Monetização
                     </h3>
                     <div className="grid grid-cols-3 gap-3">
-                      {detail.teardown.monetization_model.pricing_tiers.map((tier, i) => (
+                      {detail.teardown.monetization_model.clone_pricing.map((tier: any, i: number) => (
                         <div key={i} className={`rounded-lg p-4 border ${i === 1 ? 'bg-indigo-600/10 border-indigo-500/30' : 'bg-white/[0.02] border-white/5'}`}>
                           <p className="text-xs font-bold text-white">{tier.name}</p>
                           <p className={`text-lg font-bold mt-1 ${i === 1 ? 'text-indigo-400' : 'text-slate-300'}`}>{tier.price}</p>
                           <ul className="mt-2 space-y-1">
-                            {tier.features.map((f, j) => (
+                            {tier.features.map((f: string, j: number) => (
                               <li key={j} className="text-[10px] text-slate-500 flex items-center gap-1">
                                 <CheckCircle size={8} className={i === 1 ? 'text-indigo-400' : 'text-slate-600'} />
                                 {f}
