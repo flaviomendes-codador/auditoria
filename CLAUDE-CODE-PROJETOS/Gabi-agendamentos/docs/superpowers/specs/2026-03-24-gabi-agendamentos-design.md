@@ -146,7 +146,9 @@ GABI (Webapp Mobile-First)
 | duration_min | int | Duracao em minutos (padrao: 60) |
 | status | enum | `pending`, `confirmed`, `cancelled`, `rescheduling`, `no_show` |
 | confirmation_sent | bool | Mensagem de confirmacao ja enviada |
+| confirmation_sent_at | timestamptz | Quando a confirmacao foi enviada (usado pelo fluxo de follow-up) |
 | followup_sent | bool | Follow-up ja enviado |
+| followup_sent_at | timestamptz | Quando o follow-up foi enviado (usado pelo fluxo de alerta) |
 | alert | bool | Gabi precisa intervir manualmente |
 | created_at | timestamptz | Data de criacao |
 
@@ -198,11 +200,17 @@ message_templates ──── usado por N8N ao enviar
 settings ──── singleton (1 registro)
 ```
 
-### 5.7 RLS (Row Level Security)
+### 5.7 Coluna `user_id`
+
+Todas as tabelas (exceto `settings`) incluem uma coluna `user_id uuid REFERENCES auth.users(id) DEFAULT auth.uid()` que e preenchida automaticamente. A tabela `settings` usa `id` como referencia direta ao `auth.users(id)`.
+
+### 5.8 RLS (Row Level Security)
 
 - Todas as tabelas protegidas por RLS
 - Apenas o usuario autenticado (Gabi) tem acesso
-- Politica: `auth.uid() = user_id` em todas as queries
+- Politica: `auth.uid() = user_id` em todas as tabelas com `user_id`
+- Politica em `settings`: `auth.uid() = id`
+- Como e sistema single-user, uma alternativa simplificada e `auth.uid() IS NOT NULL`
 
 ---
 
@@ -221,7 +229,7 @@ settings ──── singleton (1 registro)
   - Indicador de cor por status (barra lateral)
   - Horario
   - Nome do paciente
-  - Tipo de sessao
+  - Descricao breve (ex: "Sessao semanal", "Primeira sessao")
   - Badge de status
 - Navegacao inferior com 5 itens: Painel, Agenda, Pacientes, Mensagens, Ajustes
 
@@ -491,9 +499,12 @@ O design reflete o universo da radiestesia e dos chakras. O gradiente dos 7 cent
     → cancela/nao vou/nao posso → atualizar status = cancelled, enviar template cancellation
     → trocar/remarcar/outro horario → atualizar status = rescheduling, alertar Gabi
     → nao identificado → manter status, alertar Gabi
+    → mensagem nao-texto (audio, imagem, video, sticker) → tratar como "nao identificado", alertar Gabi
   → [Supabase: inserir registro na tabela messages (direction: inbound)]
   → [Se confirmou: enviar mensagem de confirmacao verde]
 ```
+
+> **Nota:** Mensagens de audio, imagem ou video nao sao interpretadas no MVP. O sistema registra a mensagem e alerta a Gabi para resolver manualmente. IA conversacional pode ser adicionada no futuro para interpretar respostas ambiguas.
 
 ### 8.5 Fluxo de Alerta (Silencio Persistente)
 
@@ -554,6 +565,27 @@ O design reflete o universo da radiestesia e dos chakras. O gradiente dos 7 cent
 - HTTPS obrigatorio (Vercel)
 - Webhook do WhatsApp validado com token de verificacao
 - Rate limiting nas API routes
+
+### 10.3 API Routes (Next.js)
+
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| GET | /api/patients | Listar pacientes |
+| POST | /api/patients | Criar paciente |
+| PATCH | /api/patients/[id] | Atualizar paciente |
+| DELETE | /api/patients/[id] | Desativar paciente |
+| GET | /api/appointments | Listar agendamentos (filtro por data) |
+| POST | /api/appointments | Criar agendamento |
+| PATCH | /api/appointments/[id] | Atualizar agendamento (status, horario) |
+| DELETE | /api/appointments/[id] | Cancelar agendamento |
+| GET | /api/messages | Listar mensagens (filtro por paciente/data) |
+| POST | /api/messages/send | Enviar mensagem manual |
+| GET | /api/templates | Listar templates |
+| PATCH | /api/templates/[id] | Atualizar template |
+| GET | /api/settings | Buscar configuracoes |
+| PATCH | /api/settings | Atualizar configuracoes |
+| POST | /api/webhooks/whatsapp | Webhook inbound do WhatsApp |
+| GET | /api/webhooks/whatsapp | Verificacao do webhook (hub.verify_token) |
 
 ---
 
