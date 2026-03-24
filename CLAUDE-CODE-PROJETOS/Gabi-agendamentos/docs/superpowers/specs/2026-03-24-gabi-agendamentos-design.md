@@ -223,7 +223,7 @@ Todas as tabelas (exceto `settings`) incluem uma coluna `user_id uuid REFERENCES
 **Elementos:**
 - Saudacao: "Bom dia, Gabi 🍃 ✨"
 - Data do dia
-- Barra decorativa gradiente dos 7 chakras
+- Linha sutil de separacao (violeta suave)
 - 3 cards de resumo: Confirmados (verde), Pendentes (amarelo), Cancelados (vermelho)
 - Lista cronologica de sessoes do dia com:
   - Indicador de cor por status (barra lateral)
@@ -241,7 +241,7 @@ Todas as tabelas (exceto `settings`) incluem uma coluna `user_id uuid REFERENCES
 - Alternador de visao: Dia / Semana / Mes
 - Navegacao temporal (anterior/proximo)
 - Grid de horarios com sessoes posicionadas
-- Cores por status dos chakras
+- Cores por status (verde/amarelo/vermelho/azul)
 - Criar agendamento ao tocar no horario vazio
 - Bloquear dias/horarios (folga, feriado)
 - Numero de sessoes por dia visivel na visao mensal
@@ -292,33 +292,30 @@ Todas as tabelas (exceto `settings`) incluem uma coluna `user_id uuid REFERENCES
 
 **"Energia que organiza. Frequencia que cuida."**
 
-O design reflete o universo da radiestesia e dos chakras. O gradiente dos 7 centros energeticos permeia a interface como fio condutor de equilibrio. Formas suaves e arredondadas transmitem acolhimento. Tudo respira, tudo flui.
+Design estilo Apple: limpo, minimalista, light mode. O universo da radiestesia e dos chakras inspira a escolha de cores (violeta = consciencia, verde = cura), mas a aplicacao visual e sutil e sofisticada — sem gradientes coloridos ou arco-iris. Formas suaves e arredondadas transmitem acolhimento. Espacamento generoso, tudo respira.
 
-**Palavras-chave:** Vibracao, Frequencia, Chakras, Equilibrio, Harmonia, Radiestesia, Energia, Acolhimento
+**Palavras-chave:** Vibracao, Frequencia, Equilibrio, Harmonia, Acolhimento, Clareza
 
-### 7.2 Paleta de Cores — Chakras
+### 7.2 Paleta de Cores
 
-#### Cores dos 7 Chakras
+#### Cores Principais (inspiradas nos chakras, aplicacao minimalista)
 
-| Chakra | Cor | Hex | Uso no Sistema |
-|--------|-----|-----|----------------|
-| Coronario | Violeta | #9F7AEA | Cor primaria, marca, botoes, navegacao ativa |
-| Frontal | Indigo | #667EEA | Gradiente primario (com coronario) |
-| Laringeo | Azul | #4299E1 | Comunicacao, area de mensagens, remarcacao |
-| Cardiaco | Verde | #48BB78 | Confirmacao, sucesso, cura |
-| Plexo Solar | Amarelo | #ECC94B | Pendencia, aguardando resposta |
-| Sacral | Laranja | #ED8936 | Acentos, alertas leves |
-| Raiz | Vermelho | #E53E3E | Cancelamento, alertas criticos |
+| Cor | Hex | Uso |
+|-----|-----|-----|
+| Violeta Primario | #7C3AED | Cor principal: botoes, navegacao ativa, destaques, marca |
+| Violeta Suave | #A78BFA | Hover, icones, acentos secundarios |
+| Lavanda Fundo | #F3E8FF | Background de areas de destaque, hover sutil |
+| Verde Natureza | #34D399 | Confirmacao, sucesso |
 
-#### Cores de Status (derivadas dos chakras)
+#### Cores de Status
 
-| Status | Cor de Fundo | Cor do Texto | Chakra de Origem |
-|--------|-------------|-------------|-----------------|
-| Confirmado | #ecfdf5 | #059669 | Cardiaco |
-| Pendente | #fffbeb | #d97706 | Plexo Solar |
-| Cancelado | #fef2f2 | #dc2626 | Raiz |
-| Remarcacao | #f0f9ff | #0284c7 | Laringeo |
-| Nao compareceu | #f5f5f5 | #6b7280 | — |
+| Status | Cor de Fundo | Cor do Texto |
+|--------|-------------|-------------|
+| Confirmado | #ecfdf5 | #059669 |
+| Pendente | #fffbeb | #d97706 |
+| Cancelado | #fef2f2 | #dc2626 |
+| Remarcacao | #f0f9ff | #0284c7 |
+| Nao compareceu | #f5f5f5 | #6b7280 |
 
 #### Neutros
 
@@ -331,14 +328,12 @@ O design reflete o universo da radiestesia e dos chakras. O gradiente dos 7 cent
 | Fundo dos cards | #FFFFFF |
 | Bordas | #F3F4F6 |
 
-#### Gradientes
+#### Gradientes (uso minimo, apenas botoes primarios)
 
 | Nome | Valor | Uso |
 |------|-------|-----|
-| Chakra Completo | linear-gradient(90deg, #E53E3E, #ED8936, #ECC94B, #48BB78, #4299E1, #667EEA, #9F7AEA) | Barras decorativas, loading, separadores |
-| Violeta Profundo | linear-gradient(135deg, #9F7AEA, #667EEA) | Botoes primarios, header |
-| Verde Cura | linear-gradient(135deg, #48BB78, #38A169) | Mensagem de confirmacao |
-| Azul Comunicacao | linear-gradient(135deg, #667EEA, #4299E1) | Area de mensagens |
+| Violeta Primario | linear-gradient(135deg, #7C3AED, #6D28D9) | Botoes primarios |
+| Verde Confirmacao | linear-gradient(135deg, #34D399, #059669) | Mensagem de confirmacao enviada |
 
 ### 7.3 Tipografia
 
@@ -663,8 +658,8 @@ O design reflete o universo da radiestesia e dos chakras. O gradiente dos 7 cent
 
 1. **Singleton settings** — Uma terapeuta, sem multi-tenancy. Simplifica tudo.
 2. **Emojis estilo iOS** — Apple Color Emoji ou Twemoji em todas as plataformas.
-3. **Chakras funcionais** — Cada cor dos chakras tem funcao no sistema, nao e decorativo.
-4. **Gradiente dos 7 chakras** — Fio condutor visual presente em barras, loading, separadores.
+3. **Chakras como inspiracao** — Cores inspiradas nos chakras (violeta = consciencia, verde = cura), mas aplicacao visual minimalista estilo Apple.
+4. **Sem gradientes coloridos** — Visual limpo, sem arco-iris. Gradiente sutil apenas em botoes primarios (violeta).
 5. **Light mode** — Fundo claro, limpo, arejado. Sem dark mode.
 6. **Tudo em portugues BR** — Interface, mensagens, labels, tudo.
 7. **Mobile-first** — Celular e a ferramenta principal da Gabi.
