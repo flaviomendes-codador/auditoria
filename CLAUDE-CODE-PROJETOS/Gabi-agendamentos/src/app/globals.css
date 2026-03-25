@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface-page text-text-primary font-sans antialiased;
+  }
+
+  h1, h2 {
+    letter-spacing: -0.03em;
+  }
+
+  h3, h4 {
+    letter-spacing: -0.02em;
+  }
+}
