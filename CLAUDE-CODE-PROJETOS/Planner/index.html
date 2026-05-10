@@ -235,10 +235,118 @@
 
   <script>
   // ═══════════════ STATE ════════════════
-  // (preenchido na Task 2)
+  const STORAGE_KEY = 'flavio_produtividade_v1';
+
+  const FRENTES_INICIAIS = [
+    { id: 'tiktok_shop',      nome: 'TikTok Shop',          tipo: 'paralelo',  cor: '#1d9e75', ativa: true  },
+    { id: 'youtube_dark',     nome: 'Canal dark YouTube',    tipo: 'paralelo',  cor: '#639922', ativa: true  },
+    { id: 'curso_latam',      nome: 'Curso original LATAM',  tipo: 'paralelo',  cor: '#ba7517', ativa: true  },
+    { id: 'apps_proprios',    nome: '3 Apps próprios',       tipo: 'paralelo',  cor: '#7f77dd', ativa: true  },
+    { id: 'saas_nicho',       nome: 'SaaS de nicho',         tipo: 'paralelo',  cor: '#534ab7', ativa: false },
+    { id: 'produto_politico', nome: 'Produto político',      tipo: 'paralelo',  cor: '#a32d2d', ativa: false },
+    { id: 'clinicflow',       nome: 'ClinicFlow IA',         tipo: 'consultor', cor: '#185fa5', ativa: true  },
+    { id: 'leadscore',        nome: 'LeadScore Imob',        tipo: 'consultor', cor: '#378add', ativa: true  },
+    { id: 'esteticaflow',     nome: 'EstéticaFlow',          tipo: 'consultor', cor: '#0f6e56', ativa: true  },
+  ];
+
+  const CONFIG_PADRAO = {
+    tema: 'dark',
+    pomodoro_foco_min: 25,
+    pomodoro_pausa_curta_min: 5,
+    pomodoro_pausa_longa_min: 15,
+    ciclos_ate_pausa_longa: 4,
+    som_ativo: true,
+    notificacoes_ativas: false,
+    auto_start_delay_s: 3,
+    horarios: {
+      manha: { inicio: '10:00', fim: '12:00' },
+      tarde: { inicio: '14:00', fim: '17:00' },
+      noite: { inicio: '18:30', fim: '20:00' },
+    },
+    habitos: ['exercicio', 'leitura', 'agua', 'sono'],
+    onboarding_completo: false,
+    ultima_data_aberta: null,
+  };
+
+  let STATE = {
+    frentes: [],
+    metas_diarias: {},
+    tarefas: [],
+    pomodoros_log: [],
+    config: { ...CONFIG_PADRAO },
+  };
 
   // ═══════════════ PERSIST ═════════════
-  // (preenchido na Task 2)
+  function salvar() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
+  }
+
+  function carregar() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    try {
+      const salvo = JSON.parse(raw);
+      // Merge em vez de substituir, para suportar versões futuras
+      STATE = {
+        frentes:       salvo.frentes       ?? [],
+        metas_diarias: salvo.metas_diarias ?? {},
+        tarefas:       salvo.tarefas       ?? [],
+        pomodoros_log: salvo.pomodoros_log ?? [],
+        config:        { ...CONFIG_PADRAO, ...(salvo.config ?? {}) },
+      };
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function exportarDados() {
+    const data = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `flavio_backup_${data}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Variável global para segurar o conteúdo do import enquanto o modal está aberto
+  let _importPendente = null;
+
+  function importarDados(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      _importPendente = e.target.result;  // guarda sem injetar no onclick
+      abrirModal(`
+        <div class="modal-title">Importar backup</div>
+        <p style="color:var(--text-muted);margin-bottom:16px">
+          Isso vai <strong style="color:#e55">substituir todos os dados atuais</strong> pelo arquivo <em>${file.name}</em>. Tem certeza?
+        </p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+          <button class="btn btn-danger" onclick="confirmarImport()">Substituir dados</button>
+        </div>
+      `);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  function confirmarImport() {
+    if (!_importPendente) return;
+    try {
+      const dados = JSON.parse(_importPendente);
+      STATE = dados;
+      salvar();
+      _importPendente = null;
+      fecharModal();
+      location.reload();
+    } catch {
+      alert('Arquivo inválido.');
+    }
+  }
 
   // ═══════════════ UTILS ═══════════════
   // (preenchido na Task 3)
@@ -288,11 +396,11 @@
   function renderFrentes() { document.getElementById('tab-frentes').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Frentes em construção</p>'; }
   function renderTarefas() { document.getElementById('tab-tarefas').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Tarefas em construção</p>'; }
   function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
-  function exportarDados() {}
-  function importarDados() {}
-
   // ═══════════════ BOOT ════════════════
   (function boot() {
+    const temDados = carregar();
+    if (STATE.config.tema === 'light') document.body.classList.add('light');
+    document.getElementById('btn-som').style.opacity = STATE.config.som_ativo ? '1' : '0.4';
     renderHoje();
   })();
   </script>
