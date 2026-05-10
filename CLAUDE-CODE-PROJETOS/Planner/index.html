@@ -488,13 +488,133 @@
   function renderFrentes() { document.getElementById('tab-frentes').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Frentes em construção</p>'; }
   function renderTarefas() { document.getElementById('tab-tarefas').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Tarefas em construção</p>'; }
   function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
+  // ─── ONBOARDING ──────────────────────
+  function renderOnboarding() {
+    const el = document.getElementById('onboarding');
+    el.style.display = 'block';
+    mostrarOnboardingTela(1);
+  }
+
+  function mostrarOnboardingTela(tela) {
+    const el = document.getElementById('onboarding');
+    if (tela === 1) {
+      el.innerHTML = `
+        <div style="max-width:520px;margin:0 auto">
+          <div style="font-size:28px;font-weight:700;margin-bottom:12px">Seu planner.</div>
+          <p style="color:var(--text-muted);margin-bottom:32px;line-height:1.7">
+            Organize seu dia em blocos de horário, gerencie suas frentes e acompanhe seu foco com o timer Pomodoro. Tudo offline, tudo seu.
+          </p>
+          <button class="btn btn-primary" onclick="mostrarOnboardingTela(2)">Próximo →</button>
+        </div>
+      `;
+    } else if (tela === 2) {
+      const { manha, tarde, noite } = STATE.config.horarios;
+      el.innerHTML = `
+        <div style="max-width:520px;margin:0 auto">
+          <div style="font-size:20px;font-weight:600;margin-bottom:8px">Seus horários de trabalho</div>
+          <p style="color:var(--text-muted);margin-bottom:24px">Ajuste se precisar.</p>
+          ${['manha','tarde','noite'].map(b => `
+            <div class="form-row">
+              <label class="form-label">${b === 'manha' ? 'Manhã' : b === 'tarde' ? 'Tarde' : 'Noite'}</label>
+              <div class="flex gap-8 items-center">
+                <input class="input" style="width:100px" type="time" id="ob-${b}-i" value="${STATE.config.horarios[b].inicio}">
+                <span style="color:var(--text-muted)">até</span>
+                <input class="input" style="width:100px" type="time" id="ob-${b}-f" value="${STATE.config.horarios[b].fim}">
+              </div>
+            </div>
+          `).join('')}
+          <div class="flex gap-8 mt-16">
+            <button class="btn btn-ghost" onclick="mostrarOnboardingTela(1)">← Voltar</button>
+            <button class="btn btn-primary" onclick="salvarHorariosOnboarding()">Próximo →</button>
+          </div>
+        </div>
+      `;
+    } else if (tela === 3) {
+      el.innerHTML = `
+        <div style="max-width:520px;margin:0 auto">
+          <div style="font-size:20px;font-weight:600;margin-bottom:8px">Suas frentes ativas</div>
+          <p style="color:var(--text-muted);margin-bottom:24px">Selecione as que você vai trabalhar agora.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px">
+            ${STATE.frentes.map(f => `
+              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);cursor:pointer">
+                <input type="checkbox" id="ob-f-${f.id}" ${f.ativa ? 'checked' : ''} style="accent-color:${f.cor}">
+                <span style="flex:1">${f.nome}</span>
+                <span class="badge" style="background:${f.cor}22;color:${f.cor}">${f.tipo}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div class="flex gap-8">
+            <button class="btn btn-ghost" onclick="mostrarOnboardingTela(2)">← Voltar</button>
+            <button class="btn btn-primary" onclick="concluirOnboarding()">Começar</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function salvarHorariosOnboarding() {
+    ['manha','tarde','noite'].forEach(b => {
+      STATE.config.horarios[b].inicio = document.getElementById(`ob-${b}-i`).value;
+      STATE.config.horarios[b].fim    = document.getElementById(`ob-${b}-f`).value;
+    });
+    mostrarOnboardingTela(3);
+  }
+
+  function concluirOnboarding() {
+    STATE.frentes.forEach(f => {
+      const cb = document.getElementById(`ob-f-${f.id}`);
+      if (cb) f.ativa = cb.checked;
+    });
+    STATE.config.onboarding_completo = true;
+    STATE.config.ultima_data_aberta  = hojeISO();
+    salvar();
+    document.getElementById('onboarding').style.display = 'none';
+    pedirPermissaoNotificacao();
+    renderHoje();
+  }
+
   // ═══════════════ BOOT ════════════════
   (function boot() {
     const temDados = carregar();
+
+    // Primeira abertura: popular frentes
+    if (!temDados || STATE.frentes.length === 0) {
+      STATE.frentes = FRENTES_INICIAIS.map(f => ({ ...f }));
+      salvar();
+    }
+
     if (STATE.config.tema === 'light') document.body.classList.add('light');
     document.getElementById('btn-som').style.opacity = STATE.config.som_ativo ? '1' : '0.4';
+
+    if (!STATE.config.onboarding_completo) {
+      renderOnboarding();
+      return;
+    }
+
+    pedirPermissaoNotificacao();
+    resetDiario();
     renderHoje();
   })();
+
+  function resetDiario() {
+    const hoje = hojeISO();
+    if (STATE.config.ultima_data_aberta === hoje) return;
+
+    // Mover tarefas pendentes/em_andamento do dia anterior para hoje
+    const ontem = STATE.config.ultima_data_aberta;
+    if (ontem) {
+      STATE.tarefas.forEach(t => {
+        if (t.data_planejada === ontem && t.status !== 'concluida') {
+          t.data_planejada          = hoje;
+          t.carried_over            = true;
+          t.data_planejada_original = ontem;
+        }
+      });
+    }
+
+    STATE.config.ultima_data_aberta = hoje;
+    salvar();
+  }
   </script>
 </body>
 </html>
