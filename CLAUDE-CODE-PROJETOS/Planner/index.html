@@ -1004,6 +1004,85 @@
     `);
   }
 
+  function renderMetasHabitos(diaState) {
+    const hoje = hojeISO();
+    const pomsHoje = STATE.pomodoros_log.filter(l =>
+      l.iniciado_em?.startsWith(hoje) && !l.interrompido && l.tipo === 'foco'
+    ).length;
+    const tarefasConcluidasHoje = STATE.tarefas.filter(t =>
+      t.data_planejada === hoje && t.status === 'concluida'
+    ).length;
+    const frentesHoje = new Set(
+      STATE.pomodoros_log
+        .filter(l => l.iniciado_em?.startsWith(hoje) && l.frente_id)
+        .map(l => l.frente_id)
+    ).size;
+
+    const habLabels = { exercicio: 'Exercício', leitura: 'Leitura', sono: 'Sono > 7h' };
+
+    return `
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Meta do dia</div>
+      <textarea class="input" id="meta-principal" style="height:68px;resize:none"
+        placeholder="Qual é o foco principal de hoje?"
+        onblur="salvarMetaPrincipal(this.value)">${diaState.meta_principal || ''}</textarea>
+
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:18px 0 10px">Hábitos</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${Object.entries(habLabels).map(([k, label]) => `
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" ${diaState.habitos[k] ? 'checked' : ''}
+              style="accent-color:var(--accent)"
+              onchange="toggleHabito('${k}', this.checked)">
+            ${label}
+          </label>
+        `).join('')}
+        <!-- Água com contador -->
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <span style="flex:1">Água</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${Array.from({ length: 8 }, (_, i) => `
+              <div onclick="setAgua(${i+1})"
+                style="width:10px;height:10px;border-radius:50%;cursor:pointer;
+                       background:${i < (diaState.habitos.agua || 0) ? 'var(--accent)' : 'var(--border)'}"></div>
+            `).join('')}
+            <span style="font-size:12px;color:var(--text-muted);margin-left:2px">${diaState.habitos.agua || 0}/8</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-muted)">Hoje você completou</div>
+        <div style="font-size:22px;font-weight:700;margin:4px 0">${pomsHoje} 🍅</div>
+        <div style="font-size:12px;color:var(--text-muted)">${tarefasConcluidasHoje} tarefa${tarefasConcluidasHoje !== 1 ? 's' : ''} · ${frentesHoje} frente${frentesHoje !== 1 ? 's' : ''}</div>
+      </div>
+    `;
+  }
+
+  function salvarMetaPrincipal(valor) {
+    const hoje = hojeISO();
+    if (!STATE.metas_diarias[hoje]) return;
+    STATE.metas_diarias[hoje].meta_principal = valor;
+    salvar();
+  }
+
+  function toggleHabito(hab, valor) {
+    const hoje = hojeISO();
+    if (!STATE.metas_diarias[hoje]) return;
+    STATE.metas_diarias[hoje].habitos[hab] = valor;
+    salvar();
+    renderHoje();
+  }
+
+  function setAgua(qtd) {
+    const hoje = hojeISO();
+    if (!STATE.metas_diarias[hoje]) return;
+    // Clicar no copo já marcado desmarca (toggle: se clicar no último, zera)
+    const atual = STATE.metas_diarias[hoje].habitos.agua || 0;
+    STATE.metas_diarias[hoje].habitos.agua = atual === qtd ? qtd - 1 : qtd;
+    salvar();
+    renderHoje();
+  }
+
   function criarTarefa(frenteIdOverride, dataOverride) {
     const titulo = document.getElementById('nt-titulo')?.value?.trim();
     if (!titulo) { alert('Digite um título.'); return; }
