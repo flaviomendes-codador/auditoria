@@ -855,6 +855,179 @@
     if (POM.rodando) pomPausar();
     else pomIniciar(document.getElementById('timer-tarefa-sel')?.value || POM.tarefaId);
   }
+
+  function renderBloco(nomeBloco, ativo) {
+    const nomes = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
+    const h = STATE.config.horarios[nomeBloco];
+    const cap = capacidadeBloco(h.inicio, h.fim,
+      STATE.config.pomodoro_foco_min, STATE.config.pomodoro_pausa_curta_min);
+    const tarefas = tarefasHoje(nomeBloco);
+    const colapsado = false; // sempre aberto por padrão
+
+    return `
+      <div class="bloco-horario ${ativo ? 'ativo' : ''}" id="bloco-${nomeBloco}">
+        <div class="bloco-header" onclick="toggleBloco('${nomeBloco}')">
+          <div>
+            <span style="font-size:13px;font-weight:600">${nomes[nomeBloco]}</span>
+            <span style="font-size:12px;color:var(--text-muted);margin-left:8px">${h.inicio}–${h.fim} · ${cap}🍅</span>
+          </div>
+          <span id="bloco-arrow-${nomeBloco}" style="color:var(--text-muted);font-size:12px">▼</span>
+        </div>
+        <div class="bloco-corpo" id="bloco-corpo-${nomeBloco}">
+          ${tarefas.map(t => renderTarefaItem(t)).join('')}
+          ${tarefas.length === 0 ? `<div style="font-size:12px;color:var(--text-muted);padding:8px 4px">Nenhuma tarefa planejada</div>` : ''}
+          <button class="btn btn-ghost btn-sm"
+            style="width:100%;border-style:dashed;margin-top:4px;color:var(--text-muted)"
+            onclick="abrirModalNovaTarefa('${nomeBloco}')">
+            + Adicionar tarefa
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTarefaItem(t) {
+    const fr = frente(t.frente_id);
+    const cor = fr?.cor ?? '#888';
+    const badgeFrente = fr
+      ? `<span class="badge" style="background:${cor}22;color:${cor};flex-shrink:0">${fr.nome}</span>`
+      : '';
+    const badgeOntem = t.carried_over
+      ? `<span class="carried-badge">ontem</span>`
+      : '';
+    const concluida = t.status === 'concluida';
+
+    return `
+      <div class="tarefa-item" id="ti-${t.id}">
+        <input type="checkbox" ${concluida ? 'checked' : ''}
+          style="accent-color:${cor}"
+          onchange="toggleTarefaStatus('${t.id}', this.checked)">
+        <span class="tarefa-titulo ${concluida ? 'concluida' : ''}">${t.titulo}</span>
+        ${badgeOntem}
+        ${badgeFrente}
+        <span style="font-size:11px;color:var(--text-muted);flex-shrink:0" title="Pomodoros">🍅×${t.estimativa_pomodoros}</span>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;padding:3px 7px"
+          onclick="pomIniciar('${t.id}');document.getElementById('timer-tarefa-sel') && (document.getElementById('timer-tarefa-sel').value='${t.id}')"
+          title="Iniciar pomodoro">▶</button>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;padding:3px 7px"
+          onclick="abrirMenuMover('${t.id}')"
+          title="Mover para outro bloco">↕</button>
+      </div>
+    `;
+  }
+
+  function toggleBloco(nome) {
+    const corpo = document.getElementById(`bloco-corpo-${nome}`);
+    const arrow = document.getElementById(`bloco-arrow-${nome}`);
+    const colapsado = corpo.classList.toggle('collapsed');
+    arrow.textContent = colapsado ? '▶' : '▼';
+  }
+
+  function toggleTarefaStatus(id, concluida) {
+    const t = STATE.tarefas.find(x => x.id === id);
+    if (!t) return;
+    t.status       = concluida ? 'concluida' : 'pendente';
+    t.concluida_em = concluida ? new Date().toISOString() : null;
+    salvar();
+    renderHoje();
+  }
+
+  function abrirMenuMover(tarefaId) {
+    const nomes = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
+    abrirModal(`
+      <div class="modal-title">Mover tarefa para</div>
+      <div class="flex flex-col gap-8">
+        ${Object.entries(nomes).map(([k, v]) => `
+          <button class="btn btn-ghost" onclick="moverTarefa('${tarefaId}','${k}')">
+            ${v} (${STATE.config.horarios[k].inicio}–${STATE.config.horarios[k].fim})
+          </button>
+        `).join('')}
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      </div>
+    `);
+  }
+
+  function moverTarefa(id, bloco) {
+    const t = STATE.tarefas.find(x => x.id === id);
+    if (t) { t.horario_sugerido = bloco; salvar(); }
+    fecharModal();
+    renderHoje();
+  }
+
+  function abrirModalNovaTarefa(blocoDefault) {
+    const frentesAtivas = STATE.frentes.filter(f => f.ativa);
+    abrirModal(`
+      <div class="modal-title">Nova tarefa</div>
+      <div class="form-row">
+        <label class="form-label">Título</label>
+        <input class="input" id="nt-titulo" placeholder="O que precisa ser feito?">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Descrição (opcional)</label>
+        <textarea class="input" id="nt-desc" placeholder="Detalhes..."></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Frente</label>
+        <select class="input" id="nt-frente">
+          <option value="">— sem frente —</option>
+          ${frentesAtivas.map(f => `<option value="${f.id}">${f.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row">
+          <label class="form-label">Prioridade</label>
+          <select class="input" id="nt-prio">
+            <option value="alta">Alta</option>
+            <option value="media" selected>Média</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Pomodoros estimados</label>
+          <input class="input" id="nt-poms" type="number" min="1" max="12" value="2">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Bloco de horário</label>
+        <select class="input" id="nt-bloco">
+          <option value="manha" ${blocoDefault === 'manha' ? 'selected' : ''}>Manhã</option>
+          <option value="tarde" ${blocoDefault === 'tarde' ? 'selected' : ''}>Tarde</option>
+          <option value="noite" ${blocoDefault === 'noite' ? 'selected' : ''}>Noite</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="criarTarefa()">Criar</button>
+      </div>
+    `);
+  }
+
+  function criarTarefa(frenteIdOverride, dataOverride) {
+    const titulo = document.getElementById('nt-titulo')?.value?.trim();
+    if (!titulo) { alert('Digite um título.'); return; }
+    const t = {
+      id:                   uuid(),
+      frente_id:            document.getElementById('nt-frente')?.value || frenteIdOverride || null,
+      titulo,
+      descricao:            document.getElementById('nt-desc')?.value?.trim() || '',
+      prioridade:           document.getElementById('nt-prio')?.value || 'media',
+      status:               'pendente',
+      criada_em:            new Date().toISOString(),
+      concluida_em:         null,
+      estimativa_pomodoros: parseInt(document.getElementById('nt-poms')?.value) || 2,
+      pomodoros_usados:     0,
+      horario_sugerido:     document.getElementById('nt-bloco')?.value || 'manha',
+      data_planejada:       dataOverride || hojeISO(),
+      carried_over:         false,
+      data_planejada_original: null,
+    };
+    STATE.tarefas.push(t);
+    salvar();
+    fecharModal();
+    renderHoje();
+  }
   function renderFrentes() { document.getElementById('tab-frentes').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Frentes em construção</p>'; }
   function renderTarefas() { document.getElementById('tab-tarefas').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Tarefas em construção</p>'; }
   function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
