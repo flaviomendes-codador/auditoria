@@ -335,6 +335,32 @@
       z-index: 50;
     }
 
+    /* ─── ABA TAREFAS ─────────────────────── */
+    .tabela-tarefas { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tabela-tarefas th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tabela-tarefas td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .tabela-tarefas tr:hover td { background: var(--surface-hover); }
+    .filtros-barra {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .filtros-barra .input { width: auto; }
+
     /* ─── RESPONSIVE ─────────────────────── */
     @media (max-width: 768px) {
       .navbar .brand { display: none; }
@@ -766,8 +792,10 @@
     renderHoje();
   }
 
+  const FILTROS    = { frentes: [], status: '', prioridade: '', horario: '', busca: '' };
+  const SELECIONADAS = new Set();
+
   // ═══════════════ RENDER ══════════════
-  // (preenchido nas Tasks 4, 6, 7, 8, 9, 10)
 
   // ═══════════════ EVENTS ══════════════
 
@@ -1330,7 +1358,167 @@
     fecharModal();
     renderFrentes();
   }
-  function renderTarefas() { document.getElementById('tab-tarefas').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Tarefas em construção</p>'; }
+
+  function renderTarefas() {
+    const frentesAtivas = STATE.frentes;
+
+    document.getElementById('tab-tarefas').innerHTML = `
+      <div class="filtros-barra">
+        <input class="input" style="width:200px" placeholder="Buscar..." id="f-busca"
+          value="${FILTROS.busca}" oninput="FILTROS.busca=this.value;renderListaTarefas()">
+        <select class="input" id="f-status" onchange="FILTROS.status=this.value;renderListaTarefas()">
+          <option value="">Todos os status</option>
+          <option value="pendente"    ${FILTROS.status==='pendente'    ? 'selected':''}>Pendente</option>
+          <option value="em_andamento"${FILTROS.status==='em_andamento'? 'selected':''}>Em andamento</option>
+          <option value="concluida"   ${FILTROS.status==='concluida'   ? 'selected':''}>Concluída</option>
+        </select>
+        <select class="input" id="f-prio" onchange="FILTROS.prioridade=this.value;renderListaTarefas()">
+          <option value="">Toda prioridade</option>
+          <option value="alta"  ${FILTROS.prioridade==='alta'  ? 'selected':''}>Alta</option>
+          <option value="media" ${FILTROS.prioridade==='media' ? 'selected':''}>Média</option>
+          <option value="baixa" ${FILTROS.prioridade==='baixa' ? 'selected':''}>Baixa</option>
+        </select>
+        <select class="input" id="f-horario" onchange="FILTROS.horario=this.value;renderListaTarefas()">
+          <option value="">Todo horário</option>
+          <option value="manha" ${FILTROS.horario==='manha' ? 'selected':''}>Manhã</option>
+          <option value="tarde" ${FILTROS.horario==='tarde' ? 'selected':''}>Tarde</option>
+          <option value="noite" ${FILTROS.horario==='noite' ? 'selected':''}>Noite</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalNovaTarefa('manha')">+ Nova tarefa</button>
+      </div>
+      <div id="bulk-actions" style="display:none;margin-bottom:12px;display:flex;gap:8px;align-items:center">
+        <span id="bulk-count" style="font-size:13px;color:var(--text-muted)">0 selecionadas</span>
+        <button class="btn btn-ghost btn-sm" onclick="bulkConcluir()">Marcar concluída</button>
+        <button class="btn btn-danger btn-sm" onclick="bulkDeletar()">Deletar</button>
+        <button class="btn btn-ghost btn-sm" onclick="SELECIONADAS.clear();renderListaTarefas()">Limpar</button>
+      </div>
+      <div id="lista-tarefas-wrap" style="overflow-x:auto"></div>
+    `;
+
+    renderListaTarefas();
+  }
+
+  function tarefasFiltradas() {
+    return STATE.tarefas.filter(t => {
+      if (FILTROS.frentes.length && !FILTROS.frentes.includes(t.frente_id)) return false;
+      if (FILTROS.status    && t.status    !== FILTROS.status)    return false;
+      if (FILTROS.prioridade&& t.prioridade!== FILTROS.prioridade)return false;
+      if (FILTROS.horario   && t.horario_sugerido !== FILTROS.horario) return false;
+      if (FILTROS.busca && !t.titulo.toLowerCase().includes(FILTROS.busca.toLowerCase())) return false;
+      return true;
+    });
+  }
+
+  function renderListaTarefas() {
+    const tarefas = tarefasFiltradas();
+    const bulk = document.getElementById('bulk-actions');
+    const bulkCount = document.getElementById('bulk-count');
+    if (bulk) {
+      bulk.style.display = SELECIONADAS.size > 0 ? 'flex' : 'none';
+      if (bulkCount) bulkCount.textContent = `${SELECIONADAS.size} selecionada${SELECIONADAS.size !== 1 ? 's' : ''}`;
+    }
+
+    const html = `
+      <table class="tabela-tarefas">
+        <thead>
+          <tr>
+            <th style="width:32px"><input type="checkbox" onchange="selecionarTodas(this.checked)"></th>
+            <th>Tarefa</th>
+            <th>Frente</th>
+            <th>Status</th>
+            <th>Prioridade</th>
+            <th>🍅</th>
+            <th>Horário</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tarefas.map(t => {
+            const fr = frente(t.frente_id);
+            const cor = fr?.cor ?? '#888';
+            const nomeHorario = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
+            return `
+              <tr>
+                <td><input type="checkbox" ${SELECIONADAS.has(t.id) ? 'checked' : ''}
+                  onchange="toggleSelecionada('${t.id}', this.checked)"></td>
+                <td>
+                  <div style="font-weight:500">${t.titulo}</div>
+                  ${t.descricao ? `<div style="font-size:11px;color:var(--text-muted)">${t.descricao}</div>` : ''}
+                  ${t.carried_over ? `<span class="carried-badge">ontem</span>` : ''}
+                </td>
+                <td>${fr ? `<span class="badge" style="background:${cor}22;color:${cor}">${fr.nome}</span>` : '—'}</td>
+                <td>
+                  <select class="input" style="width:120px;padding:4px 6px;font-size:12px"
+                    onchange="alterarStatusTarefa('${t.id}', this.value)">
+                    <option value="pendente"     ${t.status==='pendente'     ? 'selected':''}>Pendente</option>
+                    <option value="em_andamento" ${t.status==='em_andamento' ? 'selected':''}>Em andamento</option>
+                    <option value="concluida"    ${t.status==='concluida'    ? 'selected':''}>Concluída</option>
+                  </select>
+                </td>
+                <td>
+                  <span class="badge" style="background:${t.prioridade==='alta'?'#a32d2d22':t.prioridade==='media'?'#ba751722':'#33333322'};color:${t.prioridade==='alta'?'#e55':t.prioridade==='media'?'#ba7517':'var(--text-muted)'}">
+                    ${t.prioridade}
+                  </span>
+                </td>
+                <td style="font-size:12px">${t.pomodoros_usados}/${t.estimativa_pomodoros}</td>
+                <td style="font-size:12px;color:var(--text-muted)">${nomeHorario[t.horario_sugerido] ?? '—'}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" onclick="deletarTarefa('${t.id}')">✕</button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+          ${tarefas.length === 0 ? `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhuma tarefa encontrada</td></tr>` : ''}
+        </tbody>
+      </table>
+    `;
+
+    const wrap = document.getElementById('lista-tarefas-wrap');
+    if (wrap) wrap.innerHTML = html;
+  }
+
+  function alterarStatusTarefa(id, status) {
+    const t = STATE.tarefas.find(x => x.id === id);
+    if (!t) return;
+    t.status       = status;
+    t.concluida_em = status === 'concluida' ? new Date().toISOString() : null;
+    salvar();
+  }
+
+  function deletarTarefa(id) {
+    if (!confirm('Deletar esta tarefa?')) return;
+    STATE.tarefas = STATE.tarefas.filter(t => t.id !== id);
+    salvar();
+    renderListaTarefas();
+  }
+
+  function toggleSelecionada(id, sel) {
+    sel ? SELECIONADAS.add(id) : SELECIONADAS.delete(id);
+    renderListaTarefas();
+  }
+
+  function selecionarTodas(sel) {
+    tarefasFiltradas().forEach(t => sel ? SELECIONADAS.add(t.id) : SELECIONADAS.delete(t.id));
+    renderListaTarefas();
+  }
+
+  function bulkConcluir() {
+    SELECIONADAS.forEach(id => {
+      const t = STATE.tarefas.find(x => x.id === id);
+      if (t) { t.status = 'concluida'; t.concluida_em = new Date().toISOString(); }
+    });
+    SELECIONADAS.clear();
+    salvar();
+    renderListaTarefas();
+  }
+
+  function bulkDeletar() {
+    if (!confirm(`Deletar ${SELECIONADAS.size} tarefa(s)?`)) return;
+    STATE.tarefas = STATE.tarefas.filter(t => !SELECIONADAS.has(t.id));
+    SELECIONADAS.clear();
+    salvar();
+    renderListaTarefas();
+  }
   function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
   // ─── ONBOARDING ──────────────────────
   function renderOnboarding() {
