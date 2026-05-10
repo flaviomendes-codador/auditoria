@@ -193,10 +193,116 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+    /* ─── ABA HOJE ───────────────────────── */
+    .hoje-grid {
+      display: grid;
+      grid-template-columns: 40% 35% 25%;
+      gap: 0;
+      min-height: calc(100vh - 44px);
+    }
+    .hoje-col {
+      padding: 20px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .hoje-col:last-child { border-right: none; }
+
+    /* Timer */
+    .timer-display {
+      font-family: 'Courier New', monospace;
+      font-size: 72px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -2px;
+      text-align: center;
+    }
+    .timer-fase {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .timer-fase.foco        { color: #1d9e75; }
+    .timer-fase.pausa_curta { color: #378add; }
+    .timer-fase.pausa_longa { color: #534ab7; }
+    .ciclo-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .ciclo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 300ms;
+    }
+    .ciclo-dot.ativo { background: #1d9e75; }
+    .timer-controles {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+
+    /* Bloco horário */
+    .bloco-horario {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color 200ms;
+    }
+    .bloco-horario.ativo { border-color: var(--accent); }
+    .bloco-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .bloco-header:hover { background: var(--surface-hover); }
+    .bloco-corpo { border-top: 1px solid var(--border); padding: 8px; }
+    .bloco-corpo.collapsed { display: none; }
+
+    /* Item tarefa */
+    .tarefa-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-hover);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+    }
+    .tarefa-item input[type=checkbox] { flex-shrink: 0; }
+    .tarefa-titulo {
+      flex: 1;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tarefa-titulo.concluida { text-decoration: line-through; color: var(--text-muted); }
+    .carried-badge {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #ba751722;
+      color: #ba7517;
+    }
+
     /* ─── RESPONSIVE ─────────────────────── */
     @media (max-width: 768px) {
       .navbar .brand { display: none; }
       .tab-btn { padding: 12px 10px; font-size: 12px; }
+      .hoje-grid { grid-template-columns: 1fr; }
+      .hoje-col  { border-right: none; border-bottom: 1px solid var(--border); }
+      .timer-display { font-size: 56px; }
     }
   </style>
 </head>
@@ -658,8 +764,97 @@
     }
   }
 
-  // Funções stub — preenchidas em tasks futuras
-  function renderHoje()    { document.getElementById('tab-hoje').innerHTML    = '<p style="padding:24px;color:var(--text-muted)">Aba Hoje em construção</p>'; }
+  function renderHoje() {
+    const hoje = hojeISO();
+    const blocoVigente = blocoAtual();
+
+    // Garantir que existe a estrutura do dia
+    if (!STATE.metas_diarias[hoje]) {
+      STATE.metas_diarias[hoje] = { meta_principal: '', frentes: {}, habitos: { exercicio: false, leitura: false, agua: 0, sono: false } };
+      salvar();
+    }
+    const diaState = STATE.metas_diarias[hoje];
+
+    document.getElementById('tab-hoje').innerHTML = `
+      <div class="hoje-grid">
+        <!-- Coluna 1: Pipeline -->
+        <div class="hoje-col">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pipeline</div>
+          <div style="font-size:18px;font-weight:600;margin-bottom:16px">${formatarData(hoje)}</div>
+          ${['manha','tarde','noite'].map(b => renderBloco(b, blocoVigente === b)).join('')}
+        </div>
+
+        <!-- Coluna 2: Timer -->
+        <div class="hoje-col" id="col-timer" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+          ${renderTimerHTML()}
+        </div>
+
+        <!-- Coluna 3: Metas + Hábitos -->
+        <div class="hoje-col">
+          ${renderMetasHabitos(diaState)}
+        </div>
+      </div>
+    `;
+
+    // Re-bind select de tarefa após render
+    const sel = document.getElementById('timer-tarefa-sel');
+    if (sel && POM.tarefaId) sel.value = POM.tarefaId;
+  }
+
+  function renderTimerHTML() {
+    const maxCiclos = STATE.config.ciclos_ate_pausa_longa;
+    const dots = Array.from({ length: maxCiclos }, (_, i) =>
+      `<div class="ciclo-dot ${i < POM.cicloAtual % maxCiclos ? 'ativo' : ''}"></div>`
+    ).join('');
+
+    const tarefasDisp = STATE.tarefas.filter(t =>
+      t.data_planejada === hojeISO() && t.status !== 'concluida'
+    );
+    const opcoesTarefas = tarefasDisp.map(t => {
+      const fr = frente(t.frente_id);
+      return `<option value="${t.id}" ${t.id === POM.tarefaId ? 'selected' : ''}>${t.titulo}${fr ? ' ('+fr.nome+')' : ''}</option>`;
+    }).join('');
+
+    return `
+      <div class="timer-fase ${POM.fase}" id="timer-fase-label">
+        ${POM.fase === 'foco' ? '● FOCO' : POM.fase === 'pausa_curta' ? '● PAUSA CURTA' : '● PAUSA LONGA'}
+      </div>
+      <div class="timer-display" id="timer-display">${formatarTempo(POM.segundos || pomSegsTotal())}</div>
+      <div class="ciclo-dots">${dots}</div>
+      <div style="width:100%;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Tarefa em foco</div>
+        <select class="input" id="timer-tarefa-sel" onchange="POM.tarefaId=this.value">
+          <option value="">— selecionar —</option>
+          ${opcoesTarefas}
+        </select>
+      </div>
+      <div class="timer-controles">
+        <button class="btn btn-primary" id="btn-timer-play" onclick="toggleTimer()">
+          ${POM.rodando ? 'Pausar' : 'Iniciar'}
+        </button>
+        <button class="btn btn-ghost" onclick="pomResetar();renderTimerDisplay()" title="Resetar">↺</button>
+        <button class="btn btn-ghost" onclick="pomPularFase();renderTimerDisplay()" title="Pular fase">⏭</button>
+      </div>
+    `;
+  }
+
+  function renderTimerDisplay() {
+    // Atualização leve — só os elementos que mudam tick a tick
+    const display = document.getElementById('timer-display');
+    if (display) display.textContent = formatarTempo(POM.segundos || pomSegsTotal());
+    const playBtn = document.getElementById('btn-timer-play');
+    if (playBtn) playBtn.textContent = POM.rodando ? 'Pausar' : 'Iniciar';
+    const faseLabel = document.getElementById('timer-fase-label');
+    if (faseLabel) {
+      faseLabel.className = `timer-fase ${POM.fase}`;
+      faseLabel.textContent = POM.fase === 'foco' ? '● FOCO' : POM.fase === 'pausa_curta' ? '● PAUSA CURTA' : '● PAUSA LONGA';
+    }
+  }
+
+  function toggleTimer() {
+    if (POM.rodando) pomPausar();
+    else pomIniciar(document.getElementById('timer-tarefa-sel')?.value || POM.tarefaId);
+  }
   function renderFrentes() { document.getElementById('tab-frentes').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Frentes em construção</p>'; }
   function renderTarefas() { document.getElementById('tab-tarefas').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Tarefas em construção</p>'; }
   function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
