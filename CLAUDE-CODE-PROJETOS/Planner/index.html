@@ -361,6 +361,65 @@
     }
     .filtros-barra .input { width: auto; }
 
+    /* ─── ABA STATS ──────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 900px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 16px 20px;
+    }
+    .stat-card-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    /* Barras verticais (pomodoros por dia) */
+    .barras-verticais {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 80px;
+      overflow-x: auto;
+    }
+    .barra-dia {
+      flex: 1;
+      min-width: 6px;
+      max-width: 20px;
+      background: var(--accent);
+      border-radius: 3px 3px 0 0;
+      transition: background 150ms;
+      cursor: default;
+    }
+    .barra-dia:hover { background: #25c890; }
+    .barra-dia.hoje  { background: #534ab7; }
+    /* Barras horizontais (por frente) */
+    .barra-h-wrap { margin-bottom: 8px; }
+    .barra-h-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+    .barra-h-track {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .barra-h-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 300ms ease;
+    }
+
     /* ─── RESPONSIVE ─────────────────────── */
     @media (max-width: 768px) {
       .navbar .brand { display: none; }
@@ -1519,7 +1578,142 @@
     salvar();
     renderListaTarefas();
   }
-  function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
+  function renderStats() {
+    const hoje = hojeISO();
+    const todosLogs = STATE.pomodoros_log.filter(l => !l.interrompido && l.tipo === 'foco');
+
+    // ── Pomodoros últimos 30 dias ────────────
+    const dias30 = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (29 - i));
+      return d.toISOString().slice(0, 10);
+    });
+    const pomsPorDia = dias30.map(d => ({
+      data:  d,
+      count: todosLogs.filter(l => l.iniciado_em?.startsWith(d)).length,
+    }));
+    const maxPoms = Math.max(...pomsPorDia.map(x => x.count), 1);
+
+    // ── Distribuição por frente ──────────────
+    const porFrente = STATE.frentes.filter(f => f.ativa).map(f => ({
+      frente: f,
+      count:  todosLogs.filter(l => l.frente_id === f.id).length,
+    })).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
+    const maxFrente = Math.max(...porFrente.map(x => x.count), 1);
+
+    // ── Streak ──────────────────────────────
+    let streak = 0;
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      if (todosLogs.some(l => l.iniciado_em?.startsWith(iso))) streak++;
+      else if (i < 29) break; // só conta streak contínuo até hoje
+    }
+
+    // ── Esta semana vs semana passada ────────
+    const inicioSemana = (offset) => {
+      const d = new Date(); d.setDate(d.getDate() - d.getDay() - offset * 7);
+      return d.toISOString().slice(0, 10);
+    };
+    const isNaSemana = (iso, offset) => {
+      const s = new Date(inicioSemana(offset));
+      const e = new Date(s); e.setDate(e.getDate() + 7);
+      const d = new Date(iso);
+      return d >= s && d < e;
+    };
+    const pomsSemAtu = todosLogs.filter(l => isNaSemana(l.iniciado_em, 0)).length;
+    const pomsSemAnt = todosLogs.filter(l => isNaSemana(l.iniciado_em, 1)).length;
+    const tarefasSemAtu = STATE.tarefas.filter(t => t.concluida_em && isNaSemana(t.concluida_em, 0)).length;
+    const tarefasSemAnt = STATE.tarefas.filter(t => t.concluida_em && isNaSemana(t.concluida_em, 1)).length;
+
+    // ── Hábitos (último mês) ─────────────────
+    const diasComMeta = Object.keys(STATE.metas_diarias).filter(d => dias30.includes(d));
+    const habLabels = { exercicio: 'Exercício', leitura: 'Leitura', sono: 'Sono > 7h' };
+    const habStats = Object.entries(habLabels).map(([k, label]) => {
+      const cumpridos = diasComMeta.filter(d => STATE.metas_diarias[d]?.habitos?.[k]).length;
+      const pct = diasComMeta.length ? Math.round(cumpridos / diasComMeta.length * 100) : 0;
+      return { label, pct };
+    });
+
+    const delta = (a, b) => a > b ? `▲ +${a-b}` : a < b ? `▼ -${b-a}` : '=';
+
+    document.getElementById('tab-stats').innerHTML = `
+      <div class="stats-grid">
+        <!-- Pomodoros 30 dias -->
+        <div class="stat-card" style="grid-column: 1 / -1">
+          <div class="stat-card-title">Pomodoros — últimos 30 dias</div>
+          <div class="barras-verticais">
+            ${pomsPorDia.map(({ data, count }) => `
+              <div class="barra-dia ${data === hoje ? 'hoje' : ''}"
+                style="height:${count === 0 ? '2px' : Math.max(4, Math.round(count / maxPoms * 76)) + 'px'}"
+                title="${data}: ${count}🍅"></div>
+            `).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px">← 30 dias atrás &nbsp;&nbsp;&nbsp; hoje (roxo) →</div>
+        </div>
+
+        <!-- Distribuição por frente -->
+        <div class="stat-card">
+          <div class="stat-card-title">Tempo por frente (total)</div>
+          ${porFrente.length === 0
+            ? '<div style="font-size:13px;color:var(--text-muted)">Sem dados ainda</div>'
+            : porFrente.map(({ frente: f, count }) => `
+              <div class="barra-h-wrap">
+                <div class="barra-h-label">
+                  <span>${f.nome}</span>
+                  <span style="color:var(--text-muted)">${count}🍅</span>
+                </div>
+                <div class="barra-h-track">
+                  <div class="barra-h-fill"
+                    style="width:${Math.round(count / maxFrente * 100)}%;background:${f.cor}"></div>
+                </div>
+              </div>
+            `).join('')
+          }
+        </div>
+
+        <!-- Semana atual vs anterior -->
+        <div class="stat-card">
+          <div class="stat-card-title">Esta semana vs semana passada</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted)">Pomodoros</div>
+              <div style="font-size:20px;font-weight:700">${pomsSemAtu} 🍅</div>
+              <div style="font-size:12px;color:${pomsSemAtu>=pomsSemAnt?'#1d9e75':'#e55'}">${delta(pomsSemAtu, pomsSemAnt)} vs semana anterior</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted)">Tarefas concluídas</div>
+              <div style="font-size:20px;font-weight:700">${tarefasSemAtu}</div>
+              <div style="font-size:12px;color:${tarefasSemAtu>=tarefasSemAnt?'#1d9e75':'#e55'}">${delta(tarefasSemAtu, tarefasSemAnt)} vs semana anterior</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Streak -->
+        <div class="stat-card">
+          <div class="stat-card-title">Streak atual</div>
+          <div style="font-size:48px;font-weight:700;line-height:1">${streak}</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px">dias consecutivos com ≥ 1 🍅</div>
+        </div>
+
+        <!-- Hábitos -->
+        <div class="stat-card">
+          <div class="stat-card-title">Hábitos — últimos 30 dias</div>
+          ${habStats.map(({ label, pct }) => `
+            <div class="barra-h-wrap">
+              <div class="barra-h-label">
+                <span>${label}</span>
+                <span style="color:var(--text-muted)">${pct}%</span>
+              </div>
+              <div class="barra-h-track">
+                <div class="barra-h-fill"
+                  style="width:${pct}%;background:var(--accent)"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
   // ─── ONBOARDING ──────────────────────
   function renderOnboarding() {
     const el = document.getElementById('onboarding');
