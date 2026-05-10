@@ -296,6 +296,45 @@
       color: #ba7517;
     }
 
+    /* ─── ABA FRENTES ─────────────────────── */
+    .frente-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      border-left-width: 4px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .frente-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+    }
+    .frente-tarefas-inline {
+      border-top: 1px solid var(--border);
+      padding: 8px 12px;
+      display: none;
+    }
+    .frente-tarefas-inline.aberta { display: block; }
+
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      font-size: 22px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50;
+    }
+
     /* ─── RESPONSIVE ─────────────────────── */
     @media (max-width: 768px) {
       .navbar .brand { display: none; }
@@ -1107,7 +1146,190 @@
     fecharModal();
     renderHoje();
   }
-  function renderFrentes() { document.getElementById('tab-frentes').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Frentes em construção</p>'; }
+  function renderFrentes() {
+    let filtroAtivo = 'todas'; // controlado por closure
+
+    const renderConteudo = () => {
+      const frentes = STATE.frentes.filter(f =>
+        filtroAtivo === 'todas' ? true : f.tipo === filtroAtivo
+      );
+      return `
+        <div style="margin-bottom:16px;display:flex;gap:8px">
+          ${['todas','paralelo','consultor'].map(t => `
+            <button class="btn ${filtroAtivo === t ? 'btn-primary' : 'btn-ghost'} btn-sm"
+              onclick="filtroFrentes('${t}')">
+              ${t === 'todas' ? 'Todas' : t === 'paralelo' ? 'Paralelo' : 'Consultor'}
+            </button>
+          `).join('')}
+        </div>
+        <div id="frentes-lista">
+          ${frentes.map(f => renderFrenteCard(f)).join('')}
+        </div>
+        <button class="fab" onclick="abrirModalNovaFrente()" title="Nova frente">+</button>
+      `;
+    };
+
+    document.getElementById('tab-frentes').innerHTML = renderConteudo();
+  }
+
+  window.filtroFrentes = function(tipo) {
+    // Re-render com novo filtro
+    const lista = document.getElementById('frentes-lista');
+    if (!lista) return;
+    const frentes = STATE.frentes.filter(f => tipo === 'todas' ? true : f.tipo === tipo);
+    lista.innerHTML = frentes.map(f => renderFrenteCard(f)).join('');
+    // Atualizar botões
+    document.querySelectorAll('[onclick^="filtroFrentes"]').forEach(b => {
+      const t = b.getAttribute('onclick').match(/'(\w+)'/)[1];
+      b.className = `btn ${t === tipo ? 'btn-primary' : 'btn-ghost'} btn-sm`;
+    });
+  };
+
+  function renderFrenteCard(f) {
+    const hoje = new Date();
+    const h30  = new Date(hoje); h30.setDate(h30.getDate() - 30);
+    const pomsMes = STATE.pomodoros_log.filter(l =>
+      l.frente_id === f.id && new Date(l.iniciado_em) >= h30 && !l.interrompido
+    ).length;
+    const tAll        = STATE.tarefas.filter(t => t.frente_id === f.id);
+    const tPendente   = tAll.filter(t => t.status === 'pendente').length;
+    const tAndamento  = tAll.filter(t => t.status === 'em_andamento').length;
+    const tConcluida  = tAll.filter(t => t.status === 'concluida').length;
+
+    return `
+      <div class="frente-card" style="border-left-color:${f.cor}">
+        <div class="frente-card-header">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:15px;font-weight:600">${f.nome}</span>
+              <span class="badge" style="background:${f.cor}22;color:${f.cor}">${f.tipo}</span>
+              ${!f.ativa ? '<span class="badge" style="background:var(--border);color:var(--text-muted)">inativa</span>' : ''}
+            </div>
+            <div style="font-size:12px;color:var(--text-muted)">
+              ${tPendente} pendente · ${tAndamento} andamento · ${tConcluida} concluída · ${pomsMes}🍅 este mês
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+            <input type="checkbox" ${f.ativa ? 'checked' : ''}
+              style="accent-color:${f.cor}"
+              onchange="toggleFrenteAtiva('${f.id}', this.checked)">
+            ativa
+          </label>
+        </div>
+        <div style="padding:0 16px 12px;display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="toggleTarefasFrente('${f.id}')">Ver tarefas</button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirModalNovaTarefaFrente('${f.id}')">+ Tarefa rápida</button>
+        </div>
+        <div class="frente-tarefas-inline" id="ft-${f.id}">
+          ${STATE.tarefas.filter(t => t.frente_id === f.id && t.status !== 'concluida').map(t => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+              <input type="checkbox" style="accent-color:${f.cor}"
+                onchange="toggleTarefaStatus('${t.id}',this.checked)">
+              <span style="flex:1;font-size:13px">${t.titulo}</span>
+              <span style="font-size:11px;color:var(--text-muted)">🍅×${t.estimativa_pomodoros}</span>
+            </div>
+          `).join('') || '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Sem tarefas pendentes</div>'}
+        </div>
+      </div>
+    `;
+  }
+
+  function toggleFrenteAtiva(id, ativa) {
+    const f = STATE.frentes.find(x => x.id === id);
+    if (f) { f.ativa = ativa; salvar(); }
+  }
+
+  function toggleTarefasFrente(id) {
+    const el = document.getElementById(`ft-${id}`);
+    if (el) el.classList.toggle('aberta');
+  }
+
+  function abrirModalNovaTarefaFrente(frenteId) {
+    const frentesAtivas = STATE.frentes.filter(f => f.ativa);
+    abrirModal(`
+      <div class="modal-title">Nova tarefa</div>
+      <div class="form-row">
+        <label class="form-label">Título</label>
+        <input class="input" id="nt-titulo" placeholder="O que precisa ser feito?">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Descrição (opcional)</label>
+        <textarea class="input" id="nt-desc" placeholder="Detalhes..."></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Frente</label>
+        <select class="input" id="nt-frente">
+          ${frentesAtivas.map(f => `<option value="${f.id}" ${f.id === frenteId ? 'selected' : ''}>${f.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row">
+          <label class="form-label">Prioridade</label>
+          <select class="input" id="nt-prio">
+            <option value="alta">Alta</option>
+            <option value="media" selected>Média</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Pomodoros estimados</label>
+          <input class="input" id="nt-poms" type="number" min="1" max="12" value="2">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Bloco de horário</label>
+        <select class="input" id="nt-bloco">
+          <option value="manha">Manhã</option>
+          <option value="tarde">Tarde</option>
+          <option value="noite">Noite</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="criarTarefa()">Criar</button>
+      </div>
+    `);
+  }
+
+  function abrirModalNovaFrente() {
+    abrirModal(`
+      <div class="modal-title">Nova frente</div>
+      <div class="form-row">
+        <label class="form-label">Nome</label>
+        <input class="input" id="nf-nome" placeholder="Ex: Newsletter">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Tipo</label>
+        <select class="input" id="nf-tipo">
+          <option value="paralelo">Paralelo</option>
+          <option value="consultor">Consultor</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Cor</label>
+        <input class="input" id="nf-cor" type="color" value="#1d9e75" style="height:38px;padding:4px">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="criarFrente()">Criar</button>
+      </div>
+    `);
+  }
+
+  function criarFrente() {
+    const nome = document.getElementById('nf-nome').value.trim();
+    if (!nome) { alert('Digite um nome.'); return; }
+    STATE.frentes.push({
+      id:   nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+      nome,
+      tipo: document.getElementById('nf-tipo').value,
+      cor:  document.getElementById('nf-cor').value,
+      ativa: true,
+    });
+    salvar();
+    fecharModal();
+    renderFrentes();
+  }
   function renderTarefas() { document.getElementById('tab-tarefas').innerHTML = '<p style="padding:24px;color:var(--text-muted)">Aba Tarefas em construção</p>'; }
   function renderStats()   { document.getElementById('tab-stats').innerHTML   = '<p style="padding:24px;color:var(--text-muted)">Aba Estatísticas em construção</p>'; }
   // ─── ONBOARDING ──────────────────────
