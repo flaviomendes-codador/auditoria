@@ -890,6 +890,26 @@
     }
   }
 
+  // ─── ATALHOS DE TECLADO ───────────────
+  document.addEventListener('keydown', (e) => {
+    // Ignorar quando usuário está digitando
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      toggleTimer();
+    }
+    if (e.key === 'n' || e.key === 'N') {
+      abrirModalNovaTarefa(blocoAtual() || 'manha');
+    }
+    if (e.key === '1') switchTab('hoje');
+    if (e.key === '2') switchTab('frentes');
+    if (e.key === '3') switchTab('tarefas');
+    if (e.key === '4') switchTab('stats');
+    if (e.key === 'Escape') fecharModal();
+  });
+
   function renderHoje() {
     const hoje = hojeISO();
     const blocoVigente = blocoAtual();
