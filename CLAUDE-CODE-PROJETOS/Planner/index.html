@@ -444,7 +444,182 @@
   }
 
   // ═══════════════ POMODORO ════════════
-  // (preenchido na Task 5)
+  // O timer roda num Web Worker criado via Blob URL para não pausar
+  // quando a aba perde foco (setTimeout/setInterval são throttled).
+  const WORKER_CODE = `
+    let iv = null;
+    self.onmessage = ({ data }) => {
+      if (data.cmd === 'start') {
+        clearInterval(iv);
+        iv = setInterval(() => self.postMessage({ tick: true }), 1000);
+      }
+      if (data.cmd === 'stop') {
+        clearInterval(iv);
+        iv = null;
+      }
+    };
+  `;
+  const _workerBlob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+  const pomWorker   = new Worker(URL.createObjectURL(_workerBlob));
+
+  // Estado do pomodoro (não persiste — recomeça ao recarregar)
+  const POM = {
+    fase:       'foco',       // 'foco' | 'pausa_curta' | 'pausa_longa'
+    cicloAtual: 0,            // 0-based, reseta após pausa_longa
+    rodando:    false,
+    segundos:   0,            // tempo restante
+    tarefaId:   null,         // tarefa atualmente em foco
+    logAtualId: null,         // id do pomodoro_log em curso
+    autoStartTimer: null,     // setTimeout para auto-iniciar próxima fase
+  };
+
+  function pomSegsTotal() {
+    const c = STATE.config;
+    if (POM.fase === 'foco')        return c.pomodoro_foco_min * 60;
+    if (POM.fase === 'pausa_curta') return c.pomodoro_pausa_curta_min * 60;
+    return c.pomodoro_pausa_longa_min * 60;
+  }
+
+  function pomIniciar(tarefaId) {
+    if (tarefaId) POM.tarefaId = tarefaId;
+    if (POM.segundos === 0) POM.segundos = pomSegsTotal();
+    POM.rodando = true;
+
+    // Criar entrada no log
+    if (POM.fase === 'foco') {
+      POM.logAtualId = uuid();
+      STATE.pomodoros_log.push({
+        id: POM.logAtualId,
+        tarefa_id:   POM.tarefaId,
+        frente_id:   STATE.tarefas.find(t => t.id === POM.tarefaId)?.frente_id ?? null,
+        iniciado_em: new Date().toISOString(),
+        concluido_em: null,
+        tipo: 'foco',
+        interrompido: false,
+        nota: null,
+      });
+      salvar();
+    }
+
+    pomWorker.postMessage({ cmd: 'start' });
+    renderTimerDisplay();
+  }
+
+  function pomPausar() {
+    POM.rodando = false;
+    pomWorker.postMessage({ cmd: 'stop' });
+    // Marcar pomodoro como interrompido se estava em foco
+    if (POM.fase === 'foco' && POM.logAtualId) {
+      const log = STATE.pomodoros_log.find(l => l.id === POM.logAtualId);
+      if (log) { log.interrompido = true; log.concluido_em = new Date().toISOString(); }
+      POM.logAtualId = null;
+      salvar();
+    }
+    renderTimerDisplay();
+  }
+
+  function pomResetar() {
+    pomPausar();
+    POM.segundos    = pomSegsTotal();
+    POM.logAtualId  = null;
+    renderTimerDisplay();
+  }
+
+  function pomPularFase() {
+    pomParar();
+    pomAvancarFase(false);
+  }
+
+  function pomParar() {
+    POM.rodando = false;
+    pomWorker.postMessage({ cmd: 'stop' });
+    clearTimeout(POM.autoStartTimer);
+  }
+
+  function pomAvancarFase(foiProdutivo = true) {
+    const cfg = STATE.config;
+
+    if (POM.fase === 'foco') {
+      // Concluir entrada no log
+      if (POM.logAtualId) {
+        const log = STATE.pomodoros_log.find(l => l.id === POM.logAtualId);
+        if (log) {
+          log.concluido_em = new Date().toISOString();
+          log.interrompido = !foiProdutivo;
+        }
+        // Incrementar pomodoros usados na tarefa
+        if (foiProdutivo && POM.tarefaId) {
+          const t = STATE.tarefas.find(x => x.id === POM.tarefaId);
+          if (t) t.pomodoros_usados++;
+        }
+        POM.logAtualId = null;
+      }
+      POM.cicloAtual++;
+      POM.fase = (POM.cicloAtual % cfg.ciclos_ate_pausa_longa === 0) ? 'pausa_longa' : 'pausa_curta';
+      salvar();
+      renderTimerDisplay();
+      if (cfg.auto_start_delay_s > 0) {
+        POM.autoStartTimer = setTimeout(() => pomIniciar(), cfg.auto_start_delay_s * 1000);
+      }
+    } else {
+      // Pausa concluída → volta para foco
+      if (POM.fase === 'pausa_longa') POM.cicloAtual = 0;
+      POM.fase = 'foco';
+      POM.segundos = pomSegsTotal();
+      salvar();
+      renderTimerDisplay();
+      if (cfg.auto_start_delay_s > 0) {
+        POM.autoStartTimer = setTimeout(() => pomIniciar(), cfg.auto_start_delay_s * 1000);
+      }
+    }
+  }
+
+  pomWorker.onmessage = ({ data }) => {
+    if (!data.tick) return;
+    POM.segundos--;
+    renderTimerDisplay();
+
+    if (POM.segundos <= 0) {
+      pomParar();
+      const ehFoco = POM.fase === 'foco';
+      if (ehFoco) {
+        beepFoco();
+        notificar('Pomodoro concluído! 🍅', 'Foi produtivo?');
+        // Mostrar modal de confirmação
+        abrirModalPomodoroConcluido();
+      } else {
+        beepPausa();
+        notificar('Pausa concluída', 'Hora de focar!');
+        pomAvancarFase(true);
+      }
+    }
+  };
+
+  function abrirModalPomodoroConcluido() {
+    abrirModal(`
+      <div class="modal-title">Pomodoro concluído! 🍅</div>
+      <p style="color:var(--text-muted);margin-bottom:20px">Como foi?</p>
+      <div class="flex gap-8" style="margin-bottom:12px">
+        <button class="btn btn-primary" style="flex:1" onclick="confirmarPomodoro(true, null)">Sim, foi produtivo</button>
+        <button class="btn btn-ghost" style="flex:1" onclick="confirmarPomodoro(false, null)">Não muito</button>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Nota (opcional)</label>
+        <input class="input" id="pom-nota" placeholder="O que fiz nesse ciclo...">
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%" onclick="confirmarPomodoro(true, document.getElementById('pom-nota').value)">Salvar com nota</button>
+    `);
+  }
+
+  function confirmarPomodoro(foiProdutivo, nota) {
+    if (nota !== null && nota !== undefined) {
+      const log = STATE.pomodoros_log.find(l => l.id === POM.logAtualId);
+      if (log && nota.trim()) log.nota = nota.trim();
+    }
+    fecharModal();
+    pomAvancarFase(foiProdutivo);
+    renderHoje();
+  }
 
   // ═══════════════ RENDER ══════════════
   // (preenchido nas Tasks 4, 6, 7, 8, 9, 10)
