@@ -349,7 +349,99 @@
   }
 
   // ═══════════════ UTILS ═══════════════
-  // (preenchido na Task 3)
+  function uuid() {
+    return crypto.randomUUID ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+  }
+
+  function hojeISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function formatarData(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    const dias   = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    const meses  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    return `${dias[d.getDay()]}, ${d.getDate()} de ${meses[d.getMonth()]}`;
+  }
+
+  function formatarTempo(segundos) {
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  // Calcula os pomodoros que cabem num bloco dado start/end "HH:MM"
+  function capacidadeBloco(inicio, fim, minFoco, minPausa) {
+    const [sh, sm] = inicio.split(':').map(Number);
+    const [eh, em] = fim.split(':').map(Number);
+    const totalMin = (eh * 60 + em) - (sh * 60 + sm);
+    const cicloDurMin = minFoco + minPausa;
+    return Math.floor(totalMin / cicloDurMin);
+  }
+
+  // Retorna 'manha' | 'tarde' | 'noite' | null conforme hora atual
+  function blocoAtual() {
+    const agora = new Date();
+    const minAtual = agora.getHours() * 60 + agora.getMinutes();
+    for (const [nome, h] of Object.entries(STATE.config.horarios)) {
+      const [sh, sm] = h.inicio.split(':').map(Number);
+      const [eh, em] = h.fim.split(':').map(Number);
+      if (minAtual >= sh * 60 + sm && minAtual <= eh * 60 + em) return nome;
+    }
+    return null;
+  }
+
+  // Web Audio API — beep simples
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+  function beep(frequencia = 880, duracaoMs = 200, volume = 0.3) {
+    if (!STATE.config.som_ativo) return;
+    if (!audioCtx) audioCtx = new AudioCtx();
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value = frequencia;
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duracaoMs / 1000);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + duracaoMs / 1000);
+  }
+  function beepFoco()  { beep(880, 250, 0.3); }  // fim de foco
+  function beepPausa() { beep(440, 200, 0.2); }  // fim de pausa
+
+  // Notificação do browser
+  function notificar(titulo, corpo) {
+    if (!STATE.config.notificacoes_ativas) return;
+    if (Notification.permission === 'granted') {
+      new Notification(titulo, { body: corpo, icon: '🍅' });
+    }
+  }
+
+  function pedirPermissaoNotificacao() {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(p => {
+        STATE.config.notificacoes_ativas = (p === 'granted');
+        salvar();
+      });
+    }
+  }
+
+  function frente(id) { return STATE.frentes.find(f => f.id === id); }
+
+  function tarefasHoje(horario) {
+    const hoje = hojeISO();
+    return STATE.tarefas.filter(t =>
+      t.data_planejada === hoje &&
+      t.status !== 'concluida' &&
+      (horario ? t.horario_sugerido === horario : true)
+    );
+  }
 
   // ═══════════════ POMODORO ════════════
   // (preenchido na Task 5)
