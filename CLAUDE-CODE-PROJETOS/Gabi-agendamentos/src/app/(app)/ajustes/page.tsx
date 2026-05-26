@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { Settings } from '@/lib/supabase/types'
@@ -57,7 +58,15 @@ export default function AjustesPage() {
 
         {/* WhatsApp */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">WhatsApp Business</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">WhatsApp Business</h2>
+            <Link
+              href="/ajustes/guia"
+              className="flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500 hover:bg-brand-100 transition"
+            >
+              📖 Como configurar?
+            </Link>
+          </div>
           <Input label="Phone ID (Meta)" value={settings.whatsapp_phone_id ?? ''} onChange={e => update('whatsapp_phone_id', e.target.value)} />
           <Input label="Token de acesso" type="password" value={settings.whatsapp_token ?? ''} onChange={e => update('whatsapp_token', e.target.value)} />
         </section>
