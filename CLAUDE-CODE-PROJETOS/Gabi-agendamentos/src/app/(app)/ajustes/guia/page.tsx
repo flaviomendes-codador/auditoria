@@ -195,17 +195,17 @@ export default function GuiaPage() {
   return (
     <div className="pt-8 pb-4 space-y-4">
       <div className="flex items-center gap-3">
-        <Link href="/ajustes" className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-card border border-surface-border text-text-secondary hover:text-text-primary transition">
+        <Link href="/ajustes/tecnico" className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-card border border-surface-border text-text-secondary hover:text-text-primary transition">
           ←
         </Link>
         <div>
           <h1 className="text-xl font-bold text-text-primary">Guia de configuração</h1>
-          <p className="text-xs text-text-secondary">WhatsApp Business API</p>
+          <p className="text-xs text-text-secondary">Referência técnica — WhatsApp Cloud API</p>
         </div>
       </div>
 
-      <p className="text-sm text-text-secondary rounded-lg bg-surface-card border border-surface-border p-4">
-        Siga estes passos para conectar o WhatsApp ao app. Você vai precisar de um computador para fazer a configuração no site da Meta.
+      <p className="text-sm text-text-secondary rounded-lg bg-amber-50 border border-amber-100 p-4">
+        Esta página é para quem faz a configuração técnica do sistema, não para o usuário final.
       </p>
 
       <div className="space-y-2">
