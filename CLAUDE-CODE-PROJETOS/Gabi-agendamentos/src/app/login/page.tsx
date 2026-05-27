@@ -1,20 +1,19 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [exchanging, setExchanging] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
-  // Supabase redireciona o code para cá — troca por sessão direto
   useEffect(() => {
     const code = searchParams.get('code')
     if (!code) return
@@ -23,12 +22,15 @@ function LoginContent() {
     const supabase = createClient()
     supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
       if (!error) {
-        router.replace('/painel')
+        // Full page reload so o servidor recebe os cookies frescos do Supabase
+        window.location.replace('/painel')
       } else {
+        console.error('[auth] exchangeCodeForSession:', error.message)
+        setAuthError(error.message)
         setExchanging(false)
       }
     })
-  }, [searchParams, router])
+  }, [searchParams])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -45,6 +47,23 @@ function LoginContent() {
         <div className="text-center space-y-2">
           <p className="text-3xl font-emoji">🍃</p>
           <p className="text-sm text-text-secondary">Entrando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (authError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-page px-6">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <p className="text-3xl font-emoji">🍃</p>
+          <div className="rounded-lg bg-red-50 border border-red-100 p-4">
+            <p className="text-sm font-medium text-red-700">Link inválido ou expirado</p>
+            <p className="mt-1 text-xs text-red-500">{authError}</p>
+          </div>
+          <Button className="w-full" onClick={() => { setAuthError(null) }}>
+            Tentar novamente
+          </Button>
         </div>
       </div>
     )
