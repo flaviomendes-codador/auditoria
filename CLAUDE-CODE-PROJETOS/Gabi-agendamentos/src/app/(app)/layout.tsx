@@ -1,4 +1,5 @@
 import { NavBar } from '@/components/ui/nav-bar'
+import { FloatingChat } from '@/components/floating-chat'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <NavBar />
+      <FloatingChat />
     </div>
   )
 }
