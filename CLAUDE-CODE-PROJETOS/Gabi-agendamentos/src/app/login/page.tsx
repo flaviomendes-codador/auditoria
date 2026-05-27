@@ -17,7 +17,7 @@ export default function LoginPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/painel` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
 
     setSent(true)
