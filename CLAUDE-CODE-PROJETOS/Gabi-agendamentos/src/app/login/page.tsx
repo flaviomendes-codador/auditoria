@@ -1,27 +1,53 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-export default function LoginPage() {
+function LoginContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [exchanging, setExchanging] = useState(false)
+
+  // Supabase redireciona o code para cá — troca por sessão direto
+  useEffect(() => {
+    const code = searchParams.get('code')
+    if (!code) return
+
+    setExchanging(true)
+    const supabase = createClient()
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (!error) {
+        router.replace('/painel')
+      } else {
+        setExchanging(false)
+      }
+    })
+  }, [searchParams, router])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-
     const supabase = createClient()
-    await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
-
+    await supabase.auth.signInWithOtp({ email })
     setSent(true)
     setLoading(false)
+  }
+
+  if (exchanging) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-page">
+        <div className="text-center space-y-2">
+          <p className="text-3xl font-emoji">🍃</p>
+          <p className="text-sm text-text-secondary">Entrando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -31,9 +57,7 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-text-primary">
             <span className="font-emoji">🍃</span> Agenda
           </h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Acesse sua conta
-          </p>
+          <p className="mt-2 text-sm text-text-secondary">Acesse sua conta</p>
         </div>
 
         {sent ? (
@@ -43,13 +67,12 @@ export default function LoginPage() {
               Link enviado para {email}
             </p>
             <p className="mt-1 text-xs text-text-secondary">
-              Verifique seu email para acessar
+              Verifique seu email e clique no link para entrar
             </p>
           </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
-              id="email"
               label="Email"
               type="email"
               placeholder="seu@email.com"
@@ -64,5 +87,17 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-surface-page">
+        <p className="text-3xl font-emoji">🍃</p>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
