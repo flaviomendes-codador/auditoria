@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   // Guardrail: limita histórico e tamanho de cada mensagem
   const messages: ChatMessage[] = (body.messages as ChatMessage[])
     .slice(-16)
-    .map((m) => ({
+    .map((m): ChatMessage => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: String(m.content ?? '').slice(0, 2000),
     }))
