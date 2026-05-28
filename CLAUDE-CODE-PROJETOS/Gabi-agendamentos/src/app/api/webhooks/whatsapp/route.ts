@@ -46,13 +46,13 @@ export async function POST(request: NextRequest) {
   const isText = message.type === 'text'
   const text = isText ? (message.text?.body ?? '') : ''
 
-  // Buscar paciente pelo numero normalizado (sem código de país, sem formatação)
-  const { data: patient } = await supabase
+  // Buscar paciente normalizando ambos os lados — sem exigir formato fixo no banco
+  const { data: allPatients } = await supabase
     .from('patients')
     .select('*')
-    .eq('phone', phoneNormalized)
     .eq('active', true)
-    .single()
+
+  const patient = allPatients?.find(p => normalizePhone(p.phone) === phoneNormalized) ?? null
 
   if (!patient) {
     return NextResponse.json({ status: 'patient_not_found' })
