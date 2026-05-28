@@ -60,6 +60,75 @@ interface Conversation {
   messages: Message[]
 }
 
+function ConversaThread({ conv, thread, onBack, onSent }: {
+  conv: Conversation
+  thread: Message[]
+  onBack: () => void
+  onSent: (msg: Message) => void
+}) {
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [localThread, setLocalThread] = useState(thread)
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault()
+    if (!text.trim()) return
+    setSending(true)
+    const res = await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: conv.patientId, phone: conv.lastMessage.patient?.phone, content: text.trim() }),
+    })
+    if (res.ok) {
+      const { message } = await res.json()
+      const newMsg = { ...message, patient: conv.lastMessage.patient }
+      setLocalThread(prev => [...prev, newMsg])
+      onSent(newMsg)
+      setText('')
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 200px)' }}>
+      <button onClick={onBack} className="flex items-center gap-2 text-sm font-semibold text-brand-500 mb-3">
+        <span className="text-lg">‹</span> {conv.patientName}
+      </button>
+      <div className="flex-1 space-y-2 pb-4">
+        {localThread.map(msg => (
+          <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 ${
+              msg.direction === 'outbound'
+                ? 'rounded-tr-sm bg-brand-500 text-white'
+                : 'rounded-tl-sm bg-surface-card border border-surface-border text-text-primary'
+            }`}>
+              <p className="text-sm leading-relaxed">{msg.content}</p>
+              <p className={`mt-1 text-[0.65rem] ${msg.direction === 'outbound' ? 'text-brand-100' : 'text-text-tertiary'}`}>
+                {formatMsgTime(msg.sent_at)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={handleSend} className="flex gap-2 pt-3 border-t border-surface-border">
+        <input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="Digite uma mensagem..."
+          className="flex-1 rounded-full border border-surface-border bg-surface-page px-4 py-2.5 text-sm text-text-primary outline-none focus:border-brand-300"
+        />
+        <button
+          type="submit"
+          disabled={sending || !text.trim()}
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+        >
+          ➤
+        </button>
+      </form>
+    </div>
+  )
+}
+
 function ConversasList() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,32 +179,7 @@ function ConversasList() {
     if (!conv) return null
     const thread = [...conv.messages].sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime())
 
-    return (
-      <div className="space-y-3">
-        <button
-          onClick={() => setSelected(null)}
-          className="flex items-center gap-2 text-sm font-semibold text-brand-500"
-        >
-          <span className="text-lg">‹</span> {conv.patientName}
-        </button>
-        <div className="space-y-2">
-          {thread.map(msg => (
-            <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 ${
-                msg.direction === 'outbound'
-                  ? 'rounded-tr-sm bg-brand-500 text-white'
-                  : 'rounded-tl-sm bg-surface-card border border-surface-border text-text-primary'
-              }`}>
-                <p className="text-sm leading-relaxed">{msg.content}</p>
-                <p className={`mt-1 text-[0.65rem] ${msg.direction === 'outbound' ? 'text-brand-100' : 'text-text-tertiary'}`}>
-                  {formatMsgTime(msg.sent_at)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
+    return <ConversaThread conv={conv} thread={thread} onBack={() => setSelected(null)} onSent={msg => setMessages(prev => [...prev, msg])} />
   }
 
   return (
