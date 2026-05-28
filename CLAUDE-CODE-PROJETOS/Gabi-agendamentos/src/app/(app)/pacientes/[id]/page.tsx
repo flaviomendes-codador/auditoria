@@ -1,22 +1,18 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatTime, formatDate } from '@/lib/utils'
 import type { Appointment } from '@/lib/supabase/types'
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createServerSupabaseClient()
 
   if (id === 'novo') {
-    return (
-      <div className="pt-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-6">Novo Paciente</h1>
-        <p className="text-sm text-text-secondary">Formulario em breve.</p>
-      </div>
-    )
+    return null
   }
 
+  const supabase = await createServerSupabaseClient()
   const { data: patient } = await supabase.from('patients').select('*').eq('id', id).single()
   if (!patient) notFound()
 
@@ -33,12 +29,21 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const rate = total > 0 ? Math.round((confirmed / total) * 100) : 0
 
   const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div className="pt-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">{patient.name}</h1>
-        <p className="mt-1 text-sm text-text-secondary">{patient.phone}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">{patient.name}</h1>
+          <p className="mt-1 text-sm text-text-secondary">{patient.phone}</p>
+        </div>
+        <Link
+          href={`/pacientes/${id}/editar`}
+          className="rounded-md border border-surface-border bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-brand-50 hover:text-brand-600 transition-colors"
+        >
+          Editar
+        </Link>
       </div>
 
       <div className="rounded-md border border-surface-border bg-surface-card p-4 space-y-3">
@@ -49,13 +54,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           </span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-text-secondary">Horario fixo</span>
+          <span className="text-text-secondary">Horário fixo</span>
           <span className="font-medium text-text-primary">
             {patient.default_time ? formatTime(patient.default_time) : '—'}
           </span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-text-secondary">Taxa de confirmacao</span>
+          <span className="text-text-secondary">Taxa de confirmação</span>
           <span className={`font-bold ${rate >= 80 ? 'text-emerald-600' : rate >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
             {rate}%
           </span>
@@ -68,10 +73,17 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
+      <Link
+        href={`/agenda?patient_id=${id}&date=${today}`}
+        className="flex w-full items-center justify-center rounded-md bg-brand-500 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
+      >
+        + Nova sessão
+      </Link>
+
       <div>
-        <h2 className="text-base font-semibold text-text-primary mb-3">Historico ({total} sessoes)</h2>
+        <h2 className="text-base font-semibold text-text-primary mb-3">Histórico ({total} sessões)</h2>
         {list.length === 0 ? (
-          <p className="text-sm text-text-secondary">Sem sessoes registradas</p>
+          <p className="text-sm text-text-secondary">Sem sessões registradas</p>
         ) : (
           <div className="space-y-2">
             {list.map(a => (
