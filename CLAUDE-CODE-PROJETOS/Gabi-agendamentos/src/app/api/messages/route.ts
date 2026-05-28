@@ -8,9 +8,9 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('messages')
-    .select('*')
+    .select('*, patient:patients(id, name, phone)')
     .order('sent_at', { ascending: false })
-    .limit(100)
+    .limit(200)
 
   if (patientId) {
     query = query.eq('patient_id', patientId)

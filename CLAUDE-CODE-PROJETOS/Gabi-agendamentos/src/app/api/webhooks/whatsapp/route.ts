@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { classifyResponse } from '@/lib/whatsapp/classifier'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/client'
 import { renderTemplate } from '@/lib/whatsapp/templates'
-import { weekdayName, formatTime } from '@/lib/utils'
+import { weekdayName, formatTime, normalizePhone } from '@/lib/utils'
 
 // Usar service role — webhook nao tem sessao de usuario autenticado
 function getAdminClient() {
@@ -42,14 +42,15 @@ export async function POST(request: NextRequest) {
   }
 
   const phone = message.from
+  const phoneNormalized = normalizePhone(phone)
   const isText = message.type === 'text'
   const text = isText ? (message.text?.body ?? '') : ''
 
-  // Buscar paciente pelo numero de telefone
+  // Buscar paciente pelo numero normalizado (sem código de país, sem formatação)
   const { data: patient } = await supabase
     .from('patients')
     .select('*')
-    .eq('phone', phone)
+    .eq('phone', phoneNormalized)
     .eq('active', true)
     .single()
 

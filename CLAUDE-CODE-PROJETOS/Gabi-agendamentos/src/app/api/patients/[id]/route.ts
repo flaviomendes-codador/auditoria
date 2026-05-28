@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { normalizePhone } from '@/lib/utils'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,7 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { data, error } = await supabase
     .from('patients')
-    .update(body)
+    .update({ ...body, phone: body.phone ? normalizePhone(body.phone) : undefined })
     .eq('id', id)
     .select()
     .single()

@@ -44,6 +44,7 @@ export interface Message {
   wapi_status: WapiStatus
   wapi_message_id: string | null
   sent_at: string
+  patient?: { id: string; name: string; phone: string }
 }
 
 export interface MessageTemplate {

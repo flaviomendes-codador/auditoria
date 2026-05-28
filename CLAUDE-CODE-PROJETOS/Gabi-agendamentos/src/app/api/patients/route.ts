@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { normalizePhone } from '@/lib/utils'
 
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     .from('patients')
     .insert({
       name: body.name,
-      phone: body.phone,
+      phone: normalizePhone(body.phone),
       default_weekday: body.default_weekday ?? null,
       default_time: body.default_time ?? null,
       notes: body.notes ?? null,

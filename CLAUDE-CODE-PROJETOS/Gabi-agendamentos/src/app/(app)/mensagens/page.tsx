@@ -1,13 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { MessageTemplate } from '@/lib/supabase/types'
+import type { Message, MessageTemplate } from '@/lib/supabase/types'
 
 const TEMPLATE_LABELS: Record<string, string> = {
-  confirmation: 'Confirmacao',
+  confirmation: 'Confirmação',
   followup: 'Follow-up',
   reminder: 'Lembrete do dia',
   cancellation: 'Cancelamento',
+}
+
+function formatMsgTime(sent_at: string) {
+  const d = new Date(sent_at)
+  const now = new Date()
+  const isToday = d.toDateString() === now.toDateString()
+  if (isToday) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
 function TemplateCard({ template, onSave }: { template: MessageTemplate; onSave: (id: string, content: string) => void }) {
@@ -33,7 +41,7 @@ function TemplateCard({ template, onSave }: { template: MessageTemplate; onSave:
         value={content}
         onChange={e => setContent(e.target.value)}
       />
-      <p className="text-xs text-text-tertiary">Variaveis: {'{nome}'} {'{hora}'} {'{dia_semana}'} {'{brand_emoji}'} {'{appointment_label}'}</p>
+      <p className="text-xs text-text-tertiary">Variáveis: {'{nome}'} {'{hora}'} {'{dia_semana}'} {'{brand_emoji}'} {'{appointment_label}'}</p>
       <button
         onClick={handleSave}
         disabled={saving}
@@ -45,8 +53,122 @@ function TemplateCard({ template, onSave }: { template: MessageTemplate; onSave:
   )
 }
 
+interface Conversation {
+  patientId: string
+  patientName: string
+  lastMessage: Message
+  messages: Message[]
+}
+
+function ConversasList() {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/messages')
+      .then(r => r.json())
+      .then(data => { setMessages(Array.isArray(data) ? data : []); setLoading(false) })
+  }, [])
+
+  // Agrupar por paciente, mostrar mais recente primeiro
+  const conversations: Conversation[] = Object.values(
+    messages.reduce<Record<string, Conversation>>((acc, msg) => {
+      const pid = msg.patient_id
+      if (!acc[pid]) {
+        acc[pid] = {
+          patientId: pid,
+          patientName: msg.patient?.name ?? 'Paciente',
+          lastMessage: msg,
+          messages: [],
+        }
+      }
+      acc[pid].messages.push(msg)
+      if (new Date(msg.sent_at) > new Date(acc[pid].lastMessage.sent_at)) {
+        acc[pid].lastMessage = msg
+      }
+      return acc
+    }, {})
+  ).sort((a, b) => new Date(b.lastMessage.sent_at).getTime() - new Date(a.lastMessage.sent_at).getTime())
+
+  if (loading) {
+    return <p className="text-sm text-text-secondary text-center py-8">Carregando...</p>
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <div className="rounded-lg border border-surface-border bg-surface-card p-8 text-center space-y-2">
+        <p className="text-2xl">💬</p>
+        <p className="text-sm text-text-secondary">Nenhuma conversa ainda</p>
+        <p className="text-xs text-text-tertiary">As respostas dos pacientes aparecerão aqui</p>
+      </div>
+    )
+  }
+
+  if (selected) {
+    const conv = conversations.find(c => c.patientId === selected)
+    if (!conv) return null
+    const thread = [...conv.messages].sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime())
+
+    return (
+      <div className="space-y-3">
+        <button
+          onClick={() => setSelected(null)}
+          className="flex items-center gap-2 text-sm font-semibold text-brand-500"
+        >
+          <span className="text-lg">‹</span> {conv.patientName}
+        </button>
+        <div className="space-y-2">
+          {thread.map(msg => (
+            <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 ${
+                msg.direction === 'outbound'
+                  ? 'rounded-tr-sm bg-brand-500 text-white'
+                  : 'rounded-tl-sm bg-surface-card border border-surface-border text-text-primary'
+              }`}>
+                <p className="text-sm leading-relaxed">{msg.content}</p>
+                <p className={`mt-1 text-[0.65rem] ${msg.direction === 'outbound' ? 'text-brand-100' : 'text-text-tertiary'}`}>
+                  {formatMsgTime(msg.sent_at)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {conversations.map(conv => (
+        <button
+          key={conv.patientId}
+          onClick={() => setSelected(conv.patientId)}
+          className="flex w-full items-center gap-3 rounded-md border border-surface-border bg-surface-card p-3.5 text-left hover:bg-brand-50 transition-colors"
+        >
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-600">
+            {conv.patientName.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-text-primary">{conv.patientName}</p>
+              <p className="text-xs text-text-tertiary flex-shrink-0 ml-2">{formatMsgTime(conv.lastMessage.sent_at)}</p>
+            </div>
+            <p className="text-xs text-text-secondary truncate mt-0.5">
+              {conv.lastMessage.direction === 'outbound' ? 'Você: ' : ''}{conv.lastMessage.content}
+            </p>
+          </div>
+          {conv.lastMessage.direction === 'inbound' && (
+            <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-brand-500" />
+          )}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function MensagensPage() {
-  const [tab, setTab] = useState<'conversas' | 'templates'>('templates')
+  const [tab, setTab] = useState<'conversas' | 'templates'>('conversas')
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
 
   useEffect(() => {
@@ -68,11 +190,7 @@ export default function MensagensPage() {
         ))}
       </div>
 
-      {tab === 'conversas' && (
-        <div className="rounded-lg border border-surface-border bg-surface-card p-8 text-center">
-          <p className="text-sm text-text-secondary">Historico de conversas disponivel em breve</p>
-        </div>
-      )}
+      {tab === 'conversas' && <ConversasList />}
 
       {tab === 'templates' && (
         <div className="space-y-3">
