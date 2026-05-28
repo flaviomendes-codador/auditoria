@@ -36,7 +36,12 @@ function LoginContent() {
     e.preventDefault()
     setLoading(true)
     const supabase = createClient()
-    await supabase.auth.signInWithOtp({ email })
+    await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
     setSent(true)
     setLoading(false)
   }
