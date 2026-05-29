@@ -8,10 +8,11 @@ interface SendMessageResult {
 
 export async function sendWhatsAppMessage(
   to: string,
-  text: string
+  text: string,
+  credentials?: { phoneId?: string; token?: string }
 ): Promise<SendMessageResult> {
-  const phoneId = process.env.WHATSAPP_PHONE_ID
-  const token = process.env.WHATSAPP_TOKEN
+  const phoneId = credentials?.phoneId ?? process.env.WHATSAPP_PHONE_ID
+  const token = credentials?.token ?? process.env.WHATSAPP_TOKEN
 
   if (!phoneId || !token) {
     return { success: false, error: 'WhatsApp nao configurado' }

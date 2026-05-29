@@ -90,12 +90,13 @@ export async function POST(request: NextRequest) {
   // Buscar settings do profissional para white-label
   const { data: settings } = await supabase
     .from('settings')
-    .select('brand_emoji, appointment_label')
+    .select('brand_emoji, appointment_label, whatsapp_phone_id, whatsapp_token')
     .eq('id', patient.user_id)
     .single()
 
   const brandEmoji = settings?.brand_emoji ?? ''
   const appointmentLabel = settings?.appointment_label ?? 'sessao'
+  const wapiCreds = { phoneId: settings?.whatsapp_phone_id ?? undefined, token: settings?.whatsapp_token ?? undefined }
 
   const firstName = patient.name.split(' ')[0]
   const vars = {
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       .eq('id', appointment.id)
 
     const confirmText = `Perfeito, ${vars.nome}! ${vars.appointment_label.charAt(0).toUpperCase() + vars.appointment_label.slice(1)} confirmada para ${vars.dia_semana} as ${vars.hora}. Te espero! ${brandEmoji}`
-    await sendWhatsAppMessage(phone, confirmText)
+    await sendWhatsAppMessage(phone, confirmText, wapiCreds)
 
   } else if (classification === 'cancelled') {
     await supabase
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
     const cancelText = cancelTemplate
       ? renderTemplate(cancelTemplate.content, vars)
       : `Oi, ${vars.nome}! Sua ${appointmentLabel} foi cancelada. Quando quiser reagendar, e so me chamar! ${brandEmoji}`
-    await sendWhatsAppMessage(phone, cancelText)
+    await sendWhatsAppMessage(phone, cancelText, wapiCreds)
 
   } else if (classification === 'rescheduling') {
     await supabase

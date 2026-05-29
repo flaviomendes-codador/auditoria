@@ -66,7 +66,7 @@ export async function GET(_request: NextRequest) {
         const text = tplMap['confirmation']
           ? renderTemplate(tplMap['confirmation'], vars)
           : `Olá, ${vars.nome}! Confirmando sua ${label} amanhã (${vars.dia_semana}) às ${vars.hora}. Confirma? ${emoji}`
-        const result = await sendWhatsAppMessage(p.phone, text)
+        const result = await sendWhatsAppMessage(p.phone, text, { phoneId: s.whatsapp_phone_id, token: s.whatsapp_token })
         if (result.success) {
           await supabase.from('appointments').update({ confirmation_sent: true, confirmation_sent_at: new Date().toISOString() }).eq('id', a.id)
           await supabase.from('messages').insert({ user_id: userId, patient_id: p.id, appointment_id: a.id, direction: 'outbound', type: 'confirmation', content: text, wapi_status: 'sent', wapi_message_id: result.messageId ?? null })
@@ -96,7 +96,7 @@ export async function GET(_request: NextRequest) {
         const text = tplMap['reminder']
           ? renderTemplate(tplMap['reminder'], vars)
           : `Bom dia, ${vars.nome}! Só lembrando da sua ${label} hoje às ${vars.hora}. Te espero! ${emoji}`
-        const result = await sendWhatsAppMessage(p.phone, text)
+        const result = await sendWhatsAppMessage(p.phone, text, { phoneId: s.whatsapp_phone_id, token: s.whatsapp_token })
         if (result.success) {
           await supabase.from('messages').insert({ user_id: userId, patient_id: p.id, appointment_id: a.id, direction: 'outbound', type: 'reminder', content: text, wapi_status: 'sent', wapi_message_id: result.messageId ?? null })
           log.push(`reminder:${a.id}`)
@@ -126,7 +126,7 @@ export async function GET(_request: NextRequest) {
       const text = tplMap['followup']
         ? renderTemplate(tplMap['followup'], vars)
         : `Oi, ${vars.nome}! Tudo bem após a ${label} de hoje? Qualquer coisa, estou aqui. ${emoji}`
-      const result = await sendWhatsAppMessage(p.phone, text)
+      const result = await sendWhatsAppMessage(p.phone, text, { phoneId: s.whatsapp_phone_id, token: s.whatsapp_token })
       if (result.success) {
         await supabase.from('appointments').update({ followup_sent: true, followup_sent_at: new Date().toISOString() }).eq('id', a.id)
         await supabase.from('messages').insert({ user_id: userId, patient_id: p.id, appointment_id: a.id, direction: 'outbound', type: 'followup', content: text, wapi_status: 'sent', wapi_message_id: result.messageId ?? null })
