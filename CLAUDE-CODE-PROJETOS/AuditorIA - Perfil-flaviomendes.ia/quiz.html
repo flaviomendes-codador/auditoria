@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoria QCR™ — Flávio Mendes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        oklch(7.5% 0.006 60);
+  --bg-mid:    oklch(11%  0.007 60);
+  --bg-raised: oklch(14%  0.007 60);
+  --text:      oklch(95%  0.005 62);
+  --text-sec:  oklch(52%  0.008 62);
+  --text-dim:  oklch(32%  0.006 62);
+  --accent:    oklch(73%  0.10  65);
+  --border:    oklch(20%  0.007 62);
+  --red:       oklch(46%  0.23  24);
+  --font: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
+}
+
+html { font-family: var(--font); font-optical-sizing: auto; -webkit-font-smoothing: antialiased; background: var(--bg); color: var(--text); }
+
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100dvh; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; }
+.screen.active { display: flex; }
+
+/* ── START ── */
+.start-wrap { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); }
+.start-title { font-size: clamp(32px, 6vw, 44px); font-weight: 800; letter-spacing: -.035em; line-height: 1.06; }
+.start-sub { font-size: 15px; color: var(--text-sec); line-height: 1.75; }
+.blocks-preview { border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; background: var(--bg-mid); display: flex; flex-direction: column; gap: 10px; }
+.block-row { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+
+/* ── QUIZ ── */
+.quiz-wrap { width: 100%; max-width: 480px; display: flex; flex-direction: column; min-height: 100dvh; }
+.progress-bar-wrap { padding: 20px 0 10px; display: flex; flex-direction: column; gap: 10px; }
+.progress-top { display: flex; justify-content: space-between; align-items: center; }
+.back-btn { font-size: 12px; color: var(--text-sec); background: none; border: none; cursor: pointer; padding: 0; }
+.back-btn:hover { color: var(--text); }
+.block-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+.step-count { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.progress-track { height: 2px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--text); border-radius: 99px; transition: width .3s ease; }
+.question-area { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px 0; gap: 20px; }
+.question-text { font-size: clamp(18px, 4vw, 22px); font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+.answers { display: flex; flex-direction: column; gap: 10px; }
+.answer-btn {
+  width: 100%; text-align: left; padding: 16px 18px;
+  border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-mid); color: var(--text-sec);
+  font-size: 14px; font-family: var(--font); line-height: 1.55;
+  cursor: pointer; transition: border-color .12s, color .12s, background .12s;
+}
+.answer-btn:hover { border-color: var(--text-dim); color: var(--text); }
+.answer-btn.selected { border-color: var(--accent); background: oklch(73% 0.10 65 / 0.1); color: var(--text); }
+
+/* ── CAPTURE ── */
+.capture-wrap { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 28px; }
+.capture-title { font-size: clamp(26px, 5vw, 36px); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); }
+.field input {
+  background: var(--bg-mid); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  color: var(--text); font-size: 14px; font-family: var(--font);
+  outline: none; transition: border-color .15s;
+}
+.field input::placeholder { color: var(--text-dim); }
+.field input:focus { border-color: var(--text-dim); }
+.privacy { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.6; }
+.error-msg { font-size: 13px; color: oklch(60% 0.20 25); }
+
+/* ── RESULTADO ── */
+.result-wrap { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 20px; padding: 40px 0; }
+.result-header { display: flex; flex-direction: column; gap: 4px; }
+.result-diag { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); }
+.result-name { font-size: 20px; font-weight: 800; letter-spacing: -.025em; }
+.score-card { border: 1px solid var(--border); border-radius: 18px; overflow: hidden; background: var(--bg-mid); }
+.score-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.score-number { font-size: 64px; font-weight: 800; letter-spacing: -.05em; line-height: 1; }
+.score-meta { display: flex; flex-direction: column; gap: 4px; justify-content: flex-end; }
+.score-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+.score-sub { font-size: 11px; color: var(--text-sec); }
+.nivel-badge { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 6px 12px; border-radius: 99px; border: 1px solid; white-space: nowrap; }
+.nivel-critico  { color: oklch(60% 0.20 25); border-color: oklch(60% 0.20 25 / .3); background: oklch(60% 0.20 25 / .1); }
+.nivel-atencao  { color: oklch(75% 0.12 70); border-color: oklch(75% 0.12 70 / .3); background: oklch(75% 0.12 70 / .1); }
+.nivel-bom      { color: oklch(72% 0.12 145); border-color: oklch(72% 0.12 145 / .3); background: oklch(72% 0.12 145 / .1); }
+.nivel-excelente { color: var(--accent); border-color: oklch(73% 0.10 65 / .3); background: oklch(73% 0.10 65 / .1); }
+.bars-section { padding: 20px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; }
+.bar-row { display: grid; grid-template-columns: 20px 1fr 32px; align-items: center; gap: 10px; }
+.bar-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--text-dim); }
+.bar-label.gargalo { color: var(--text); }
+.bar-track { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--text); border-radius: 99px; }
+.bar-fill.gargalo-fill { background: var(--red); }
+.bar-val { font-size: 11px; color: var(--text-sec); font-variant-numeric: tabular-nums; text-align: right; }
+.insight { padding: 18px 20px; display: flex; gap: 12px; }
+.insight-icon { flex-shrink: 0; width: 22px; height: 22px; border-radius: 4px; background: oklch(46% 0.23 24 / .2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: var(--red); margin-top: 1px; }
+.insight-text { font-size: 13px; color: var(--text-sec); line-height: 1.7; }
+.insight-text strong { color: var(--text); font-weight: 600; }
+.cta-section { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.cta-note { font-size: 12px; color: var(--text-dim); text-align: center; line-height: 1.6; padding: 0 8px; }
+
+/* ── BTN ── */
+.btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: 16px 24px;
+  background: var(--text); color: var(--bg);
+  font-size: 13px; font-weight: 700; font-family: var(--font);
+  letter-spacing: .07em; text-transform: uppercase;
+  border: none; border-radius: 10px; cursor: pointer;
+  text-decoration: none; transition: opacity .15s;
+}
+.btn:hover { opacity: .87; }
+.btn:disabled { opacity: .4; cursor: default; }
+</style>
+</head>
+<body>
+
+<!-- ── TELA 1: START ── -->
+<div id="screen-start" class="screen active">
+  <div class="start-wrap">
+    <div>
+      <p class="eyebrow">Diagnóstico gratuito</p>
+      <h1 class="start-title" style="margin-top:6px">Auditoria QCR™</h1>
+      <p class="start-sub" style="margin-top:10px">12 perguntas. Menos de 3 minutos. Resultado imediato.</p>
+    </div>
+    <div class="blocks-preview">
+      <div class="block-row"><span>Q — Qualificação</span><span>4 perguntas</span></div>
+      <div class="block-row"><span>C — Conexão</span><span>4 perguntas</span></div>
+      <div class="block-row"><span>R — Recuperação</span><span>4 perguntas</span></div>
+    </div>
+    <div>
+      <button class="btn" onclick="startQuiz()">Começar Auditoria ↗</button>
+      <p style="text-align:center;font-size:12px;color:var(--text-dim);margin-top:10px">Gratuito · Sem cadastro até o resultado</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── TELA 2: QUIZ ── -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-wrap">
+    <div class="progress-bar-wrap">
+      <div class="progress-top">
+        <button class="back-btn" onclick="goBack()">← Voltar</button>
+        <span class="block-label" id="block-label"></span>
+        <span class="step-count" id="step-count"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div class="question-area">
+      <h2 class="question-text" id="question-text"></h2>
+      <div class="answers" id="answers"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TELA 3: CAPTURA ── -->
+<div id="screen-capture" class="screen">
+  <div class="capture-wrap">
+    <div>
+      <p class="eyebrow">Auditoria QCR™</p>
+      <h2 class="capture-title" style="margin-top:6px">Seu diagnóstico está pronto.</h2>
+      <p class="start-sub" style="margin-top:8px">Para revelar, precisamos de:</p>
+    </div>
+    <form class="form" onsubmit="submitCapture(event)">
+      <div class="field">
+        <label>Nome</label>
+        <input id="f-nome" type="text" placeholder="Seu nome" required autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Empresa</label>
+        <input id="f-empresa" type="text" placeholder="Nome da empresa" required>
+      </div>
+      <div class="field">
+        <label>WhatsApp</label>
+        <input id="f-whatsapp" type="tel" placeholder="(11) 99999-9999" required autocomplete="tel">
+      </div>
+      <p class="error-msg" id="capture-error" style="display:none"></p>
+      <button id="submit-btn" class="btn" type="submit">Ver meu Score QCR™ →</button>
+      <p class="privacy">Seus dados não serão compartilhados. Usados apenas para contato com Flávio.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ── TELA 4: RESULTADO ── -->
+<div id="screen-result" class="screen">
+  <div class="result-wrap">
+    <div class="result-header">
+      <p class="result-diag" id="r-diag"></p>
+      <p class="result-name" id="r-name"></p>
+    </div>
+    <div class="score-card">
+      <div class="score-header">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <span class="score-number" id="r-total"></span>
+          <div class="score-meta">
+            <span class="score-label">Score Geral QCR™</span>
+            <span class="score-sub">Baseado em 12 respostas</span>
+          </div>
+        </div>
+        <span class="nivel-badge" id="r-nivel-badge"></span>
+      </div>
+      <div class="bars-section">
+        <div class="bar-row">
+          <span class="bar-label" id="lbl-q">Q</span>
+          <div class="bar-track"><div class="bar-fill" id="fill-q"></div></div>
+          <span class="bar-val" id="val-q"></span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" id="lbl-c">C</span>
+          <div class="bar-track"><div class="bar-fill" id="fill-c"></div></div>
+          <span class="bar-val" id="val-c"></span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" id="lbl-r">R</span>
+          <div class="bar-track"><div class="bar-fill" id="fill-r"></div></div>
+          <span class="bar-val" id="val-r"></span>
+        </div>
+      </div>
+      <div class="insight">
+        <div class="insight-icon">!</div>
+        <p class="insight-text" id="r-insight"></p>
+      </div>
+    </div>
+    <div class="cta-section">
+      <a id="r-wa-btn" class="btn" href="#" target="_blank" rel="noopener">Agendar conversa com Flávio ↗</a>
+      <p class="cta-note" id="r-cta-note"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──
+const SUPABASE_URL  = 'https://ygthayfuzkkxewkkbcub.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlndGhheWZ1emtreGV3a2tiY3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MDIyNTAsImV4cCI6MjA5Mzk3ODI1MH0.2vfHO0iXpVls98B5gVBRp2QnZKHvHp3NtGvSL5oMR4A';
+const WPP_NUMBER    = '5511977556835';
+
+// ── PERGUNTAS ──
+const QUESTIONS = [
+  { bloco:'Q', blocoLabel:'Q — Qualificação', texto:'Como sua equipe identifica quais leads têm maior potencial de compra?', opcoes:[
+    {texto:'Não temos critério definido — todos recebem a mesma atenção', valor:0},
+    {texto:'Informalmente, por feeling da equipe', valor:33},
+    {texto:'Temos alguns critérios, mas não são seguidos de forma consistente', valor:67},
+    {texto:'Processo estruturado com critérios claros aplicados em todos os leads', valor:100},
+  ]},
+  { bloco:'Q', blocoLabel:'Q — Qualificação', texto:'Com que frequência leads sem perfil consomem tempo da equipe de vendas?', opcoes:[
+    {texto:'Frequentemente — não conseguimos filtrar antes do atendimento', valor:0},
+    {texto:'Às vezes — depende do vendedor', valor:33},
+    {texto:'Raramente — temos um filtro, mas não é perfeito', valor:67},
+    {texto:'Quase nunca — nosso processo de qualificação é eficiente', valor:100},
+  ]},
+  { bloco:'Q', blocoLabel:'Q — Qualificação', texto:'Sua equipe registra informações de qualificação dos leads em algum sistema?', opcoes:[
+    {texto:'Não registramos nada', valor:0},
+    {texto:'Registramos de forma irregular, depende do vendedor', valor:33},
+    {texto:'Registramos na maioria dos casos', valor:67},
+    {texto:'Sempre registramos com campos padronizados', valor:100},
+  ]},
+  { bloco:'Q', blocoLabel:'Q — Qualificação', texto:'Você consegue priorizar quais leads abordar primeiro com base em dados objetivos?', opcoes:[
+    {texto:'Não — a ordem é por chegada ou preferência do vendedor', valor:0},
+    {texto:'Às vezes — depende da percepção do vendedor', valor:33},
+    {texto:'Na maioria das vezes, com base em informações básicas', valor:67},
+    {texto:'Sempre — temos score ou critério objetivo de priorização', valor:100},
+  ]},
+  { bloco:'C', blocoLabel:'C — Conexão', texto:'Em quanto tempo sua empresa responde a um novo lead?', opcoes:[
+    {texto:'Mais de 24 horas', valor:0},
+    {texto:'Entre 1 e 24 horas', valor:33},
+    {texto:'Entre 15 minutos e 1 hora', valor:67},
+    {texto:'Em menos de 15 minutos', valor:100},
+  ]},
+  { bloco:'C', blocoLabel:'C — Conexão', texto:'Como sua equipe conduz a primeira conversa com um lead?', opcoes:[
+    {texto:'Sem roteiro — cada vendedor age como preferir', valor:0},
+    {texto:'Existe um roteiro básico, mas raramente seguido', valor:33},
+    {texto:'A maioria segue um roteiro, com variações', valor:67},
+    {texto:'Roteiro estruturado, seguido de forma consistente por todos', valor:100},
+  ]},
+  { bloco:'C', blocoLabel:'C — Conexão', texto:'O lead sabe exatamente qual é o próximo passo após o primeiro contato?', opcoes:[
+    {texto:'Raramente — a conversa termina sem definir próximos passos', valor:0},
+    {texto:'Às vezes — depende do vendedor', valor:33},
+    {texto:'Na maioria das vezes definimos próximos passos', valor:67},
+    {texto:'Sempre — o próximo passo é acordado e registrado em todo contato', valor:100},
+  ]},
+  { bloco:'C', blocoLabel:'C — Conexão', texto:'Com que clareza sua empresa comunica o valor do produto/serviço no primeiro contato?', opcoes:[
+    {texto:'A comunicação é genérica e pouco diferenciada', valor:0},
+    {texto:'Razoável, mas não adaptada ao perfil do lead', valor:33},
+    {texto:'Boa — adaptamos a comunicação na maioria dos casos', valor:67},
+    {texto:'Excelente — comunicação personalizada e focada no problema do lead', valor:100},
+  ]},
+  { bloco:'R', blocoLabel:'R — Recuperação', texto:'O que acontece com leads que não responderam após o primeiro contato?', opcoes:[
+    {texto:'Nada — ficam parados até alguém lembrar', valor:0},
+    {texto:'Fazemos uma tentativa manual esporádica', valor:33},
+    {texto:'Temos uma sequência de follow-up, mas não é consistente', valor:67},
+    {texto:'Processo automatizado e estruturado de reativação', valor:100},
+  ]},
+  { bloco:'R', blocoLabel:'R — Recuperação', texto:'Com quantas tentativas sua equipe insiste em um lead antes de desistir?', opcoes:[
+    {texto:'Uma ou duas tentativas no máximo', valor:0},
+    {texto:'Três a quatro tentativas sem critério definido', valor:33},
+    {texto:'Seguimos um número definido de tentativas com intervalo padronizado', valor:67},
+    {texto:'Processo multi-canal com tentativas e intervalos estratégicos definidos', valor:100},
+  ]},
+  { bloco:'R', blocoLabel:'R — Recuperação', texto:'Sua empresa possui um processo para reativar leads antigos (mais de 30 dias sem contato)?', opcoes:[
+    {texto:'Não — leads antigos são considerados perdidos', valor:0},
+    {texto:'Às vezes fazemos contato manual, sem processo definido', valor:33},
+    {texto:'Temos uma prática de reativação, mas não é sistemática', valor:67},
+    {texto:'Processo estruturado de reativação com critérios e cadência definidos', valor:100},
+  ]},
+  { bloco:'R', blocoLabel:'R — Recuperação', texto:'Você consegue identificar qual etapa do processo comercial tem maior taxa de abandono?', opcoes:[
+    {texto:'Não temos visibilidade sobre isso', valor:0},
+    {texto:'Temos uma percepção, mas sem dados concretos', valor:33},
+    {texto:'Sabemos onde perdemos mais, com dados parciais', valor:67},
+    {texto:'Monitoramos cada etapa com dados claros e tomamos ações corretivas', valor:100},
+  ]},
+];
+
+// ── DIAGNÓSTICOS ──
+const DIAGNOSTICS = {
+  Q: {
+    critico:   'Sua equipe trata todos os leads da mesma forma. Oportunidades de alto valor competem por atenção com contatos sem potencial — e ambos perdem.',
+    atencao:   'Sua qualificação é inconsistente. Alguns vendedores identificam boas oportunidades, outros não. O resultado é imprevisível e difícil de escalar.',
+    bom:       'Sua qualificação está no caminho certo. O próximo passo é tornar o processo sistemático para que todos os vendedores obtenham resultados similares.',
+    excelente: 'Qualificação sólida. Você sabe exatamente onde investir o tempo da equipe comercial.',
+  },
+  C: {
+    critico:   'Sua empresa está perdendo leads no momento mais crítico: o primeiro contato. Velocidade e condução insuficientes fazem o lead perder interesse antes de receber uma proposta.',
+    atencao:   'Sua capacidade de conexão varia conforme o vendedor. Leads que chegam a um profissional melhor convertem. Os demais, não. Isso é um risco operacional.',
+    bom:       'Sua equipe conecta bem na maioria dos casos. Padronizar os critérios de próximo passo elevará sua conversão de forma consistente.',
+    excelente: 'Conexão eficiente. Você responde rápido, comunica valor e define próximos passos com clareza.',
+  },
+  R: {
+    critico:   'Existe receita parada na sua operação neste momento. Leads que demonstraram interesse e foram esquecidos. Sem processo de recuperação, você descarta oportunidades que já custaram dinheiro para atrair.',
+    atencao:   'Sua recuperação é parcial e dependente de iniciativa individual. Quando alguém lembra, o follow-up acontece. Quando não lembra, o lead some.',
+    bom:       'Você tem processo de recuperação, mas não é sistemático o suficiente. Automatizar a cadência multiplicará os resultados sem exigir mais esforço da equipe.',
+    excelente: 'Recuperação bem estruturada. Você não deixa oportunidades morrerem por falta de acompanhamento.',
+  },
+};
+
+const NIVEL_LABELS = { critico:'Crítico', atencao:'Atenção', bom:'Bom', excelente:'Excelente' };
+const GARGALO_LABELS = { Q:'Qualificação', C:'Conexão', R:'Recuperação' };
+
+// ── STATE ──
+let currentStep = 0;
+let answers = {};
+
+// ── SCORING ──
+function avg(arr) { return Math.round(arr.reduce((s,v) => s+v, 0) / arr.length); }
+function calcScores() {
+  const q = avg([0,1,2,3].map(i => answers[i] ?? 0));
+  const c = avg([4,5,6,7].map(i => answers[i] ?? 0));
+  const r = avg([8,9,10,11].map(i => answers[i] ?? 0));
+  const total = avg([q, c, r]);
+  const nivel = total <= 39 ? 'critico' : total <= 69 ? 'atencao' : total <= 89 ? 'bom' : 'excelente';
+  const min = Math.min(q, c, r);
+  const gargalo = q === min ? 'Q' : c === min ? 'C' : 'R';
+  return { q, c, r, total, nivel, gargalo };
+}
+
+// ── UTM ──
+function getUtm() {
+  try { return new URLSearchParams(window.location.search).get('utm_source') || null; } catch { return null; }
+}
+
+// ── NAVIGATION ──
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function startQuiz() {
+  currentStep = 0;
+  answers = {};
+  renderQuestion();
+  show('screen-quiz');
+}
+
+function goBack() {
+  if (currentStep > 0) {
+    currentStep--;
+    renderQuestion();
+  } else {
+    show('screen-start');
+  }
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[currentStep];
+  const pct = (currentStep / 12) * 100;
+  document.getElementById('block-label').textContent = q.blocoLabel;
+  document.getElementById('step-count').textContent = `${currentStep + 1}/12`;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('question-text').textContent = q.texto;
+
+  const answersEl = document.getElementById('answers');
+  answersEl.innerHTML = '';
+  q.opcoes.forEach(op => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn' + (answers[currentStep] === op.valor ? ' selected' : '');
+    btn.textContent = op.texto;
+    btn.onclick = () => selectAnswer(op.valor);
+    answersEl.appendChild(btn);
+  });
+}
+
+function selectAnswer(valor) {
+  answers[currentStep] = valor;
+  renderQuestion(); // highlight selected
+  setTimeout(() => {
+    if (currentStep < 11) {
+      currentStep++;
+      renderQuestion();
+    } else {
+      show('screen-capture');
+    }
+  }, 320);
+}
+
+// ── SUBMIT ──
+async function submitCapture(e) {
+  e.preventDefault();
+  const nome     = document.getElementById('f-nome').value.trim();
+  const empresa  = document.getElementById('f-empresa').value.trim();
+  const whatsapp = document.getElementById('f-whatsapp').value.trim();
+  const errEl    = document.getElementById('capture-error');
+  const btn      = document.getElementById('submit-btn');
+
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Calculando...';
+
+  const { q, c, r, total, nivel, gargalo } = calcScores();
+
+  try {
+    // Insert lead
+    const leadRes = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({
+        nome, empresa, whatsapp,
+        score_total: total, score_q: q, score_c: c, score_r: r,
+        nivel, gargalo, utm_source: getUtm(),
+      }),
+    });
+
+    if (!leadRes.ok) throw new Error(await leadRes.text());
+    const [lead] = await leadRes.json();
+
+    // Insert respostas
+    const respostas = QUESTIONS.map((qq, i) => ({
+      lead_id: lead.id,
+      pergunta: i + 1,
+      bloco: qq.bloco,
+      valor: answers[i] ?? 0,
+    }));
+    await fetch(`${SUPABASE_URL}/rest/v1/respostas`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(respostas),
+    });
+  } catch (err) {
+    // Se Supabase falhar, ainda mostramos o resultado
+    console.error('Supabase:', err);
+  }
+
+  showResult({ nome, empresa, q, c, r, total, nivel, gargalo });
+}
+
+// ── RESULTADO ──
+function showResult({ nome, empresa, q, c, r, total, nivel, gargalo }) {
+  document.getElementById('r-diag').textContent = `Diagnóstico de ${nome}`;
+  document.getElementById('r-name').textContent = `Auditoria QCR™ · ${empresa}`;
+  document.getElementById('r-total').textContent = total;
+
+  const badge = document.getElementById('r-nivel-badge');
+  badge.textContent = NIVEL_LABELS[nivel];
+  badge.className = `nivel-badge nivel-${nivel}`;
+
+  setBar('q', q, gargalo === 'Q');
+  setBar('c', c, gargalo === 'C');
+  setBar('r', r, gargalo === 'R');
+
+  const gargaloScore = { Q: q, C: c, R: r }[gargalo];
+  const insightText = document.getElementById('r-insight');
+  insightText.innerHTML = `<strong>Gargalo identificado em ${GARGALO_LABELS[gargalo]} (${gargaloScore}).</strong> ${DIAGNOSTICS[gargalo][nivel]}`;
+
+  const msg = `Olá Flávio, fiz a Auditoria QCR™. Score: ${total}. Gargalo principal: ${GARGALO_LABELS[gargalo]}. Empresa: ${empresa}. Quero entender como melhorar.`;
+  document.getElementById('r-wa-btn').href = `https://wa.me/${WPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+  document.getElementById('r-cta-note').textContent = `O próximo passo é uma conversa estratégica para resolver o gargalo em ${GARGALO_LABELS[gargalo]}.`;
+
+  show('screen-result');
+}
+
+function setBar(key, score, isGargalo) {
+  document.getElementById(`fill-${key}`).style.width = score + '%';
+  document.getElementById(`fill-${key}`).className = 'bar-fill' + (isGargalo ? ' gargalo-fill' : '');
+  document.getElementById(`val-${key}`).textContent = score;
+  document.getElementById(`lbl-${key}`).className = 'bar-label' + (isGargalo ? ' gargalo' : '');
+}
+</script>
+</body>
+</html>
