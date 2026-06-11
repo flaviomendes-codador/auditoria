@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        oklch(7.5% 0.006 60);
+  --bg-mid:    oklch(11%  0.007 60);
+  --bg-raised: oklch(14%  0.007 60);
+  --bg-light:  oklch(97.5% 0.004 62);
+  --text:      oklch(95%  0.005 62);
+  --text-sec:  oklch(52%  0.008 62);
+  --text-dim:  oklch(32%  0.006 62);
+  --accent:    oklch(73%  0.10  65);
+  --border:    oklch(20%  0.007 62);
+  --border-lt: oklch(87%  0.005 62);
+  --red:       oklch(46%  0.23  24);
+}
+
+html {
+  font-family: var(--font-bricolage), -apple-system, system-ui, sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  scroll-behavior: smooth;
+}
